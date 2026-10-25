@@ -1,13 +1,13 @@
 services:
-  backend:
+  app:
     build:
-      context: ./backend
+      context: .
       args:
         APP_VERSION: ${APP_VERSION:-dev}
-    image: ghcr.io/aldoexpert/mikrotik-wireguard-backend:${APP_VERSION:-dev}
+    image: ghcr.io/aldoexpert/mikrotik-wireguard:${APP_VERSION:-dev}
     restart: unless-stopped
     ports:
-      - "${BACKEND_PORT:-8200}:8200"
+      - "${APP_PORT:-8200}:8200"
     volumes:
       - ./data:/app/data
     environment:
@@ -35,15 +35,4 @@ services:
     # network_mode: host
     # cap_add:
     #   - NET_ADMIN
-
-  frontend:
-    build:
-      context: ./frontend
-      args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8200}
-    image: ghcr.io/aldoexpert/mikrotik-wireguard-frontend:${APP_VERSION:-dev}
-    restart: unless-stopped
-    ports:
-      - "${FRONTEND_PORT:-8081}:80"
-    depends_on:
-      - backend
+  

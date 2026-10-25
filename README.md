@@ -35,7 +35,8 @@ mikrotik-wireguard/
 │       ├── js/               # app.js, routes.js, store.js, api.js
 │       └── pages/            # login, clients, server, settings, users, ...
 ├── data/                    # persistent data (users, clients, settings) -- JSON files, gitignored
-└── docker-compose.yaml       # backend + frontend, ready to run
+├── Dockerfile                # multi-stage: builds the frontend, embeds it into the Go binary
+└── docker-compose.yaml       # single service, single port, ready to run
 ```
 
 The backend is a **pure REST API** (it renders no HTML) -- every endpoint
@@ -46,10 +47,12 @@ with a consistent JSON envelope:
 { "status": true, "code": 200, "message": "", "data": {}, "datas": [] }
 ```
 
-Auth uses a **JWT Bearer token** (not a cookie session), so the frontend --
-running on a different origin/port -- can call the backend freely without
-CSRF/cross-site cookie issues. There's no granular RBAC -- just an `admin`
-flag per user, matching wireguard-ui's original design.
+Auth uses a **JWT Bearer token** (not a cookie session). The frontend is a
+static Framework7 PWA that is built and embedded straight into the Go
+binary (see `Dockerfile`), so in production both the API and the UI are
+served from the same origin/port -- no CORS/CSRF concerns there either.
+There's no granular RBAC -- just an `admin` flag per user, matching
+wireguard-ui's original design.
 
 Data is stored as JSON files under `data/` on the host (no MySQL/Postgres),
 so deployment stays lightweight for a single container.
@@ -65,15 +68,11 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-- Frontend: http://localhost:8081 (default login `admin` / `admin`,
-  **change it** on the Profile page right after your first login)
-- Backend API: http://localhost:8200
+- App (frontend + API, single port): http://localhost:8200
+  (default login `admin` / `admin`, **change it** on the Profile page right
+  after your first login)
 
 Persistent data is stored in `./data` on the host (see `docker-compose.yaml`).
-
-> `VITE_API_BASE_URL` is baked into the frontend build when the image is
-> built. If the backend's address changes, rebuild the frontend image:
-> `docker compose build frontend`.
 
 ---
 
@@ -113,8 +112,23 @@ MTWG_DISABLE_LOGIN=true MTWG_CONFIG_FILE_PATH=/tmp/wg0.conf go run ./cmd/api
 ```bash
 cd frontend
 npm install --legacy-peer-deps
-npm run dev          # dev server on :5173, talks to the backend via VITE_API_BASE_URL
+npm run dev          # dev server on :5173, proxies API calls to :8200 (see vite.config.js)
 npm run build         # production build into frontend/www/
+```
+
+This two-process setup (`:5173` + `:8200`) is for local development only. In
+production (Docker), `npm run build`'s output is copied into
+`backend/web/dist/` and embedded into the Go binary at compile time (see
+`Dockerfile` and `backend/web/embed.go`), so the shipped app is a single
+binary serving everything on one port -- no separate frontend
+container/process.
+
+To test that single-binary setup locally without Docker:
+
+```bash
+cd frontend && npm install --legacy-peer-deps && npm run build
+rm -rf ../backend/web/dist && cp -r www ../backend/web/dist
+cd ../backend && go run ./cmd/api   # now serving UI + API on :8200
 ```
 
 ---

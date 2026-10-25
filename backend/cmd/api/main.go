@@ -22,6 +22,7 @@ import (
 	"github.com/aldoexpert/mikrotik-wireguard/internal/modules/system"
 	"github.com/aldoexpert/mikrotik-wireguard/internal/modules/users"
 	"github.com/aldoexpert/mikrotik-wireguard/internal/modules/wireguard"
+	"github.com/aldoexpert/mikrotik-wireguard/web"
 )
 
 // Set at build time via -ldflags, see backend/Makefile.
@@ -72,7 +73,16 @@ func main() {
 
 	go runTelegramBot(db)
 
-	var h http.Handler = app.Router
+	// Single port: known API module prefixes go to the dynamic router,
+	// everything else (the SPA and its client-side routes) is served from
+	// the embedded frontend build. See web/embed.go.
+	mainMux := http.NewServeMux()
+	for _, prefix := range []string{"/auth/", "/wireguard/", "/network/", "/users/", "/system/"} {
+		mainMux.Handle(prefix, app.Router)
+	}
+	mainMux.Handle("/", web.Handler())
+
+	var h http.Handler = mainMux
 	h = middleware.Recovery(h)
 	h = middleware.Logging(h)
 	h = middleware.CORS(cfg.CORSAllowedOrigins)(h)

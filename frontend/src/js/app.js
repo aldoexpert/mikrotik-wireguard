@@ -27,6 +27,14 @@ const app = new Framework7({
         url: '/',
         browserHistory: true,
         browserHistoryRoot: '',
+        // F7 still inserts its "#!" separator in pushState URLs by default
+        // even with browserHistory enabled -- it has to be disabled
+        // explicitly. Without this, router.navigate() (login success, page
+        // links, ...) produced "/#!/login/" while a hard
+        // window.location.href navigation (logout, api.js's 401 handler)
+        // produced a clean "/login/", so the URL scheme was inconsistent
+        // depending on which code path triggered the navigation.
+        browserHistorySeparator: '',
       });
     },
   },

@@ -16,7 +16,8 @@ COPY frontend/ .
 RUN npx vite build
 
 # ---- Stage 2: build the Go binary, embedding the frontend above ----------
-FROM golang:1.22-alpine AS builder
+# backend/go.mod requires go 1.26.0 -- keep this tag in sync with that line.
+FROM golang:1.26-alpine AS builder
 ARG APP_VERSION=development
 ARG GIT_COMMIT=N/A
 ARG BUILD_TIME

@@ -1,0 +1,41 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Go
+vendor/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Frontend build output
+frontend/www/
+
+# Local env files
+.env
+.env.*
+!.env.example
+!frontend/.env.example
+
+# Runtime data (users, clients, server config -- see docker-compose.yaml)
+data/
+# Stale default DB path (backend's MTWG_DB_PATH defaults to ./db when
+# unset) -- the real data directory is the root data/ above.
+backend/db/
+
+# IDEs
+.vscode
+.idea
+
+# Vim
+.*.sw[op]

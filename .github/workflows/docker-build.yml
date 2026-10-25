@@ -1,0 +1,166 @@
+name: Build & Push Docker Images
+
+on:
+  push:
+    branches: [main, master]
+    tags: ["*"]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  # ── Detect which service(s) actually changed ──────────────────────────────
+  detect-changes:
+    name: Detect changed services
+    runs-on: ubuntu-22.04
+    outputs:
+      backend:  ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # needed for dorny/paths-filter on push events
+
+      - name: Path filter
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+            frontend:
+              - 'frontend/**'
+
+  # ── Shared: compute image tag & build metadata ───────────────────────────
+  meta:
+    name: Build metadata
+    runs-on: ubuntu-22.04
+    outputs:
+      app_version: ${{ steps.info.outputs.app_version }}
+      git_commit:  ${{ steps.info.outputs.git_commit }}
+      build_time:  ${{ steps.info.outputs.build_time }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute metadata
+        id: info
+        run: |
+          git_commit=$(git rev-parse --short HEAD)
+          build_time=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            tag="${GITHUB_REF#refs/tags/}"
+            # Strip leading 'v' for SemVer tags (v1.2.3 → 1.2.3)
+            app_version="${tag#v}"
+          else
+            app_version="dev"
+          fi
+
+          echo "app_version=${app_version}" >> "$GITHUB_OUTPUT"
+          echo "git_commit=${git_commit}"   >> "$GITHUB_OUTPUT"
+          echo "build_time=${build_time}"   >> "$GITHUB_OUTPUT"
+
+  # ── Backend build ─────────────────────────────────────────────────────────
+  build-backend:
+    name: Build backend image
+    needs: [detect-changes, meta]
+    # Build when: backend files changed, OR it is a release tag
+    if: |
+      needs.detect-changes.outputs.backend == 'true' ||
+      startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute image tags
+        id: tags
+        run: |
+          base="indonetsoft/mikrotik-wireguard-backend"
+          version="${{ needs.meta.outputs.app_version }}"
+
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            tag="${GITHUB_REF#refs/tags/}"
+            semver="${tag#v}"
+            images="${base}:${semver},${base}:latest"
+          elif [[ "${GITHUB_REF}" == refs/heads/main || "${GITHUB_REF}" == refs/heads/master ]]; then
+            images="${base}:latest"
+          else
+            # PR: build but do NOT push
+            images="${base}:pr-${{ github.event.pull_request.number }}"
+          fi
+
+          echo "images=${images}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build & push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.tags.outputs.images }}
+          build-args: |
+            APP_VERSION=${{ needs.meta.outputs.app_version }}
+            BUILD_TIME=${{ needs.meta.outputs.build_time }}
+            GIT_COMMIT=${{ needs.meta.outputs.git_commit }}
+          cache-from: type=gha,scope=backend
+          cache-to:   type=gha,scope=backend,mode=max
+
+  # ── Frontend build ────────────────────────────────────────────────────────
+  build-frontend:
+    name: Build frontend image
+    needs: [detect-changes, meta]
+    # Build when: frontend files changed, OR it is a release tag
+    if: |
+      needs.detect-changes.outputs.frontend == 'true' ||
+      startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute image tags
+        id: tags
+        run: |
+          base="indonetsoft/mikrotik-wireguard-frontend"
+
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            tag="${GITHUB_REF#refs/tags/}"
+            semver="${tag#v}"
+            images="${base}:${semver},${base}:latest"
+          elif [[ "${GITHUB_REF}" == refs/heads/main || "${GITHUB_REF}" == refs/heads/master ]]; then
+            images="${base}:latest"
+          else
+            images="${base}:pr-${{ github.event.pull_request.number }}"
+          fi
+
+          echo "images=${images}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build & push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.tags.outputs.images }}
+          build-args: |
+            VITE_API_BASE_URL=${{ vars.VITE_API_BASE_URL || '' }}
+          cache-from: type=gha,scope=frontend
+          cache-to:   type=gha,scope=frontend,mode=max

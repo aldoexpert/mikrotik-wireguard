@@ -1,0 +1,122 @@
+<template>
+  <div class="page" data-name="wol">
+    <div class="navbar">
+      <div class="navbar-bg"></div>
+      <div class="navbar-inner">
+        <div class="left"><a href="#" class="link icon-only panel-open" data-panel=".panel-left"><i class="icon f7-icons if-not-md">menu</i><i class="icon material-icons md-only">menu</i></a></div>
+        <div class="title">Wake on LAN</div>
+      </div>
+    </div>
+    <div class="page-content">
+      ${loading ? $h`<div class="block text-align-center"><div class="preloader"></div></div>` : $h`
+        <div class="list media-list no-hairlines-md">
+          <ul>
+            ${hosts.map((h) => $h`
+              <li class="swipeout">
+                <div class="item-content swipeout-content">
+                  <div class="item-inner">
+                    <div class="item-title-row"><div class="item-title">${h.name}</div></div>
+                    <div class="item-subtitle">${h.mac_address}</div>
+                    <div class="item-text">${h.latest_used ? ('Last woken: ' + new Date(h.latest_used).toLocaleString()) : 'Never woken'}</div>
+                  </div>
+                  <div class="item-after">
+                    <a href="#" class="button button-small" @click="${(e) => { e.preventDefault(); wake(h); }}">Wake</a>
+                  </div>
+                </div>
+                <div class="swipeout-actions-right">
+                  <a href="#" class="swipeout-delete color-red" @click="${(e) => { e.preventDefault(); removeHost(h); }}">Delete</a>
+                </div>
+              </li>
+            `)}
+          </ul>
+        </div>
+
+        <div class="block-title">Add Host</div>
+        <form @submit="${createHost}">
+          <div class="list no-hairlines-md">
+            <ul>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">Name</div>
+                    <div class="item-input-wrap"><input type="text" required value="${newHost.name}" @input="${(e) => { newHost.name = e.target.value; }}" /></div>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">MAC Address</div>
+                    <div class="item-input-wrap"><input type="text" required placeholder="AA:BB:CC:DD:EE:FF" value="${newHost.mac_address}" @input="${(e) => { newHost.mac_address = e.target.value; }}" /></div>
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </div>
+          <div class="block"><button type="submit" class="button button-fill button-large">Add Host</button></div>
+        </form>
+      `}
+    </div>
+  </div>
+</template>
+<script>
+import api, { ApiError } from '../js/api.js';
+import { notifySuccess, notifyError, errorMessage } from '../js/notify.js';
+
+export default (props, { $f7, $update }) => {
+  let hosts = [];
+  let loading = true;
+  let newHost = { name: '', mac_address: '' };
+
+  const load = async () => {
+    loading = true;
+    $update();
+    try {
+      const res = await api.get('/network/wol/list');
+      hosts = res.datas || [];
+    } catch (err) {
+      notifyError($f7, errorMessage(err, ApiError, 'Failed to load the host list'));
+    } finally {
+      loading = false;
+      $update();
+    }
+  };
+
+  const createHost = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post('/network/wol/save', newHost);
+      newHost = { name: '', mac_address: '' };
+      await load();
+    } catch (err) {
+      notifyError($f7, errorMessage(err, ApiError, 'Failed to add the host'));
+    }
+  };
+
+  const removeHost = (h) => {
+    $f7.dialog.confirm(`Delete host "${h.name}"?`, async () => {
+      try {
+        await api.post('/network/wol/delete', { mac_address: h.mac_address });
+        hosts = hosts.filter((x) => x.mac_address !== h.mac_address);
+        $update();
+      } catch (err) {
+        notifyError($f7, errorMessage(err, ApiError, 'Failed to delete the host'));
+      }
+    });
+  };
+
+  const wake = async (h) => {
+    try {
+      await api.post('/network/wol/wake', { mac_address: h.mac_address });
+      notifySuccess($f7, `Magic packet sent to ${h.name}`);
+      await load();
+    } catch (err) {
+      notifyError($f7, errorMessage(err, ApiError, 'Failed to send the magic packet'));
+    }
+  };
+
+  load();
+
+  return $render;
+};
+</script>

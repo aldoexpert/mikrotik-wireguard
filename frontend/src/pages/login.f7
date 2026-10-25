@@ -1,0 +1,89 @@
+<template>
+  <div class="page no-navbar no-toolbar">
+    <div class="page-content mtwg-login-screen">
+      <div class="card mtwg-login-card">
+        <div class="card-content card-content-padding">
+          <div class="text-align-center margin-bottom">
+            <h2>Mikrotik WireGuard</h2>
+            <p class="mtwg-muted">Sign in to manage WireGuard & Mikrotik</p>
+          </div>
+
+          <form @submit="${handleSubmit}">
+            <div class="list no-hairlines-md">
+              <ul>
+                <li>
+                  <div class="item-content item-input">
+                    <div class="item-inner">
+                      <div class="item-title item-label">Username</div>
+                      <div class="item-input-wrap">
+                        <input type="text" required autocapitalize="off" value="${username}" @input="${(e) => { username = e.target.value; }}" />
+                      </div>
+                    </div>
+                  </div>
+                </li>
+                <li>
+                  <div class="item-content item-input">
+                    <div class="item-inner">
+                      <div class="item-title item-label">Password</div>
+                      <div class="item-input-wrap">
+                        <input type="password" required value="${password}" @input="${(e) => { password = e.target.value; }}" />
+                      </div>
+                    </div>
+                  </div>
+                </li>
+                <li>
+                  <label class="item-checkbox item-content">
+                    <input type="checkbox" ${rememberMe ? 'checked' : ''} @change="${(e) => { rememberMe = e.target.checked; }}" />
+                    <i class="icon icon-checkbox"></i>
+                    <div class="item-inner">
+                      <div class="item-title">Remember me</div>
+                    </div>
+                  </label>
+                </li>
+              </ul>
+            </div>
+            <div class="block">
+              <button type="submit" class="button button-fill button-large" ${loading ? 'disabled' : ''}>
+                ${loading ? 'Signing in...' : 'Sign In'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import api, { ApiError } from '../js/api.js';
+import { notifyError, errorMessage } from '../js/notify.js';
+
+export default (props, { $f7, $update }) => {
+  let username = '';
+  let password = '';
+  let rememberMe = false;
+  let loading = false;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    loading = true;
+    $update();
+
+    try {
+      const res = await api.post('/auth/session/login', {
+        username,
+        password,
+        remember_me: rememberMe,
+      });
+      $f7.store.dispatch('setSession', res.data);
+      $f7.views.main.router.navigate('/', { reloadAll: true });
+    } catch (err) {
+      notifyError($f7, errorMessage(err, ApiError, 'Login failed'));
+    } finally {
+      loading = false;
+      $update();
+    }
+  };
+
+  return $render;
+};
+</script>

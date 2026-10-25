@@ -1,0 +1,117 @@
+<template>
+  <div class="page" data-name="users">
+    <div class="navbar">
+      <div class="navbar-bg"></div>
+      <div class="navbar-inner">
+        <div class="left"><a href="#" class="link icon-only panel-open" data-panel=".panel-left"><i class="icon f7-icons if-not-md">menu</i><i class="icon material-icons md-only">menu</i></a></div>
+        <div class="title">Users</div>
+      </div>
+    </div>
+    <div class="page-content">
+      ${loading ? $h`<div class="block text-align-center"><div class="preloader"></div></div>` : $h`
+        <div class="list media-list no-hairlines-md">
+          <ul>
+            ${users.map((u) => $h`
+              <li class="swipeout">
+                <div class="item-content swipeout-content">
+                  <div class="item-inner">
+                    <div class="item-title-row">
+                      <div class="item-title">${u.username} ${u.admin ? $h`<span class="chip chip-outline"><span class="chip-label">admin</span></span>` : ''}</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="swipeout-actions-right">
+                  <a href="#" class="swipeout-delete color-red" @click="${(e) => { e.preventDefault(); removeUser(u); }}">Delete</a>
+                </div>
+              </li>
+            `)}
+          </ul>
+        </div>
+
+        <div class="block-title">Add User</div>
+        <form @submit="${createUser}">
+          <div class="list no-hairlines-md">
+            <ul>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">Username</div>
+                    <div class="item-input-wrap"><input type="text" required value="${newUser.username}" @input="${(e) => { newUser.username = e.target.value; }}" /></div>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">Password</div>
+                    <div class="item-input-wrap"><input type="password" required value="${newUser.password}" @input="${(e) => { newUser.password = e.target.value; }}" /></div>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="item-content">
+                  <div class="item-inner">
+                    <div class="item-title">Admin</div>
+                    <div class="item-after"><label class="toggle"><input type="checkbox" ${newUser.admin ? 'checked' : ''} @change="${(e) => { newUser.admin = e.target.checked; }}" /><span class="toggle-icon"></span></label></div>
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </div>
+          <div class="block"><button type="submit" class="button button-fill button-large">Add User</button></div>
+        </form>
+      `}
+    </div>
+  </div>
+</template>
+<script>
+import api, { ApiError } from '../js/api.js';
+import { notifyError, errorMessage } from '../js/notify.js';
+
+export default (props, { $f7, $update }) => {
+  let users = [];
+  let loading = true;
+  let newUser = { username: '', password: '', admin: false };
+
+  const load = async () => {
+    loading = true;
+    $update();
+    try {
+      const res = await api.get('/users/account/list');
+      users = res.datas || [];
+    } catch (err) {
+      notifyError($f7, errorMessage(err, ApiError, 'Failed to load the user list'));
+    } finally {
+      loading = false;
+      $update();
+    }
+  };
+
+  const createUser = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post('/users/account/create', newUser);
+      newUser = { username: '', password: '', admin: false };
+      await load();
+    } catch (err) {
+      notifyError($f7, errorMessage(err, ApiError, 'Failed to create the user'));
+    }
+  };
+
+  const removeUser = (u) => {
+    $f7.dialog.confirm(`Delete user "${u.username}"?`, async () => {
+      try {
+        await api.post('/users/account/delete', { username: u.username });
+        users = users.filter((x) => x.username !== u.username);
+        $update();
+      } catch (err) {
+        notifyError($f7, errorMessage(err, ApiError, 'Failed to delete the user'));
+      }
+    });
+  };
+
+  load();
+
+  return $render;
+};
+</script>

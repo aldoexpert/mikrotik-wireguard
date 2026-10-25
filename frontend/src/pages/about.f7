@@ -1,0 +1,40 @@
+<template>
+  <div class="page" data-name="about">
+    <div class="navbar">
+      <div class="navbar-bg"></div>
+      <div class="navbar-inner">
+        <div class="left"><a href="#" class="link icon-only panel-open" data-panel=".panel-left"><i class="icon f7-icons if-not-md">menu</i><i class="icon material-icons md-only">menu</i></a></div>
+        <div class="title">About</div>
+      </div>
+    </div>
+    <div class="page-content">
+      <div class="block-title">Mikrotik WireGuard Manager</div>
+      <div class="list simple-list">
+        <ul>
+          <li>Version: ${info.app_version}</li>
+          <li>Git Commit: ${info.git_commit}</li>
+          <li>Build: ${info.build_time}</li>
+        </ul>
+      </div>
+      <div class="block mtwg-muted">
+        <p>Author: Aldo · <a href="https://aldo-expert.com" target="_blank">aldo-expert.com</a></p>
+        <p>Company: indonetsoft · <a href="https://indonetsoft.com" target="_blank">indonetsoft.com</a></p>
+        <p>Built with Go (backend) & Framework7 (frontend PWA)</p>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import api from '../js/api.js';
+
+export default (props, { $update }) => {
+  let info = { app_version: '-', git_commit: '-', build_time: '-' };
+
+  api.get('/system/misc/about').then((res) => {
+    info = res.data;
+    $update();
+  }).catch(() => {});
+
+  return $render;
+};
+</script>

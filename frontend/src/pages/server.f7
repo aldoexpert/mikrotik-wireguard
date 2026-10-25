@@ -1,0 +1,162 @@
+<template>
+  <div class="page" data-name="server">
+    <div class="navbar">
+      <div class="navbar-bg"></div>
+      <div class="navbar-inner">
+        <div class="left"><a href="#" class="link icon-only panel-open" data-panel=".panel-left"><i class="icon f7-icons if-not-md">menu</i><i class="icon material-icons md-only">menu</i></a></div>
+        <div class="title">Server</div>
+      </div>
+    </div>
+    <div class="page-content">
+      ${loading ? $h`<div class="block text-align-center"><div class="preloader"></div></div>` : $h`
+        <div class="block-title">Interface</div>
+        <form @submit="${saveInterface}">
+          <div class="list no-hairlines-md">
+            <ul>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">Addresses (CIDR, comma separated)</div>
+                    <div class="item-input-wrap"><input type="text" value="${iface.addresses}" @input="${(e) => { iface.addresses = e.target.value; }}" /></div>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">Listen Port</div>
+                    <div class="item-input-wrap"><input type="number" value="${iface.listen_port}" @input="${(e) => { iface.listen_port = e.target.value; }}" /></div>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">PostUp</div>
+                    <div class="item-input-wrap"><input type="text" value="${iface.post_up}" @input="${(e) => { iface.post_up = e.target.value; }}" /></div>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">PreDown</div>
+                    <div class="item-input-wrap"><input type="text" value="${iface.pre_down}" @input="${(e) => { iface.pre_down = e.target.value; }}" /></div>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">PostDown</div>
+                    <div class="item-input-wrap"><input type="text" value="${iface.post_down}" @input="${(e) => { iface.post_down = e.target.value; }}" /></div>
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </div>
+          <div class="block"><button type="submit" class="button button-fill button-large">Save Interface</button></div>
+        </form>
+
+        <div class="block-title">Key Pair</div>
+        <div class="list simple-list">
+          <ul>
+            <li>Public Key: <span class="mtwg-muted">${keyPair.public_key}</span></li>
+          </ul>
+        </div>
+        <div class="block">
+          <button class="button button-outline" @click="${regenerateKeyPair}">Generate New Key Pair</button>
+        </div>
+
+        <div class="block-title">Apply Configuration</div>
+        <div class="block">
+          <p class="mtwg-muted">Re-writes the WireGuard server configuration from the current data.</p>
+          <button class="button button-fill color-orange" @click="${applyConfig}" ${applying ? 'disabled' : ''}>${applying ? 'Applying...' : 'Apply Configuration'}</button>
+        </div>
+      `}
+    </div>
+  </div>
+</template>
+<script>
+import api, { ApiError } from '../js/api.js';
+import { notifySuccess, notifyError, errorMessage } from '../js/notify.js';
+
+export default (props, { $f7, $update }) => {
+  let loading = true;
+  let applying = false;
+  let iface = { addresses: '', listen_port: '', post_up: '', pre_down: '', post_down: '' };
+  let keyPair = { public_key: '' };
+
+  const load = async () => {
+    loading = true;
+    $update();
+    try {
+      const res = await api.get('/wireguard/server/get');
+      const server = res.data;
+      iface = {
+        addresses: (server.interface.addresses || []).join(', '),
+        listen_port: server.interface.listen_port,
+        post_up: server.interface.post_up || '',
+        pre_down: server.interface.pre_down || '',
+        post_down: server.interface.post_down || '',
+      };
+      keyPair = { public_key: server.key_pair.public_key };
+    } catch (err) {
+      notifyError($f7, errorMessage(err, ApiError, 'Failed to load the server configuration'));
+    } finally {
+      loading = false;
+      $update();
+    }
+  };
+
+  const saveInterface = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post('/wireguard/server/updateinterfaces', {
+        addresses: iface.addresses.split(',').map((s) => s.trim()).filter(Boolean),
+        listen_port: String(iface.listen_port),
+        post_up: iface.post_up,
+        pre_down: iface.pre_down,
+        post_down: iface.post_down,
+      });
+      notifySuccess($f7, 'Interface updated. Don\'t forget to "Apply Configuration".');
+    } catch (err) {
+      notifyError($f7, errorMessage(err, ApiError, 'Failed to save the interface'));
+    } finally {
+      $update();
+    }
+  };
+
+  const regenerateKeyPair = () => {
+    $f7.dialog.confirm('The old key pair will be replaced. Every client will need to be reconfigured. Continue?', async () => {
+      try {
+        const res = await api.post('/wireguard/server/updatekeypair', {});
+        keyPair = { public_key: res.data.public_key };
+        notifySuccess($f7, 'Server key pair updated. Don\'t forget to "Apply Configuration".');
+      } catch (err) {
+        notifyError($f7, errorMessage(err, ApiError, 'Failed to generate a new key pair'));
+      } finally {
+        $update();
+      }
+    });
+  };
+
+  const applyConfig = async () => {
+    applying = true;
+    $update();
+    try {
+      await api.post('/wireguard/server/applyconfig', {});
+      notifySuccess($f7, 'Server configuration applied successfully.');
+    } catch (err) {
+      notifyError($f7, errorMessage(err, ApiError, 'Failed to apply the configuration'));
+    } finally {
+      applying = false;
+      $update();
+    }
+  };
+
+  load();
+
+  return $render;
+};
+</script>

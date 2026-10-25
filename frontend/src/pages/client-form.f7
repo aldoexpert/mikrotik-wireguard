@@ -1,0 +1,235 @@
+<template>
+  <div class="page" data-name="client-form">
+    <div class="navbar">
+      <div class="navbar-bg"></div>
+      <div class="navbar-inner">
+        <div class="left"><a href="#" class="link back"><i class="icon icon-back"></i><span class="if-not-md">Back</span></a></div>
+        <div class="title">${isEdit ? 'Edit Client' : 'Add Client'}</div>
+      </div>
+    </div>
+    <div class="page-content">
+      ${loading ? $h`<div class="block text-align-center"><div class="preloader"></div></div>` : $h`
+        <form @submit="${handleSubmit}">
+          <div class="list no-hairlines-md">
+            <ul>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">Name</div>
+                    <div class="item-input-wrap"><input type="text" required value="${form.name}" @input="${(e) => { form.name = e.target.value; }}" /></div>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">Email (optional)</div>
+                    <div class="item-input-wrap"><input type="email" value="${form.email}" @input="${(e) => { form.email = e.target.value; }}" /></div>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">Telegram User ID (optional)</div>
+                    <div class="item-input-wrap"><input type="text" value="${form.telegram_userid}" @input="${(e) => { form.telegram_userid = e.target.value; }}" /></div>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">Allocated IPs (CIDR, comma separated)</div>
+                    <div class="item-input-wrap">
+                      <input type="text" value="${form.allocated_ips}" @input="${(e) => { form.allocated_ips = e.target.value; }}" />
+                    </div>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="item-content">
+                  <a href="#" class="button button-small" @click="${(e) => { e.preventDefault(); suggestIP(); }}">Suggest IP</a>
+                </div>
+              </li>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">Allowed IPs (CIDR, comma separated)</div>
+                    <div class="item-input-wrap"><input type="text" value="${form.allowed_ips}" @input="${(e) => { form.allowed_ips = e.target.value; }}" /></div>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">Extra Allowed IPs (optional)</div>
+                    <div class="item-input-wrap"><input type="text" value="${form.extra_allowed_ips}" @input="${(e) => { form.extra_allowed_ips = e.target.value; }}" /></div>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">Endpoint override (optional)</div>
+                    <div class="item-input-wrap"><input type="text" value="${form.endpoint}" @input="${(e) => { form.endpoint = e.target.value; }}" /></div>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="item-content">
+                  <div class="item-inner">
+                    <div class="item-title">Use server DNS</div>
+                    <div class="item-after"><label class="toggle"><input type="checkbox" ${form.use_server_dns ? 'checked' : ''} @change="${(e) => { form.use_server_dns = e.target.checked; }}" /><span class="toggle-icon"></span></label></div>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="item-content">
+                  <div class="item-inner">
+                    <div class="item-title">Enabled</div>
+                    <div class="item-after"><label class="toggle"><input type="checkbox" ${form.enabled ? 'checked' : ''} @change="${(e) => { form.enabled = e.target.checked; }}" /><span class="toggle-icon"></span></label></div>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">Additional notes</div>
+                    <div class="item-input-wrap"><textarea @input="${(e) => { form.additional_notes = e.target.value; }}">${form.additional_notes}</textarea></div>
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </div>
+          <div class="block">
+            <button type="submit" class="button button-fill button-large" ${saving ? 'disabled' : ''}>${saving ? 'Saving...' : 'Save'}</button>
+          </div>
+        </form>
+      `}
+    </div>
+  </div>
+</template>
+<script>
+import api, { ApiError } from '../js/api.js';
+import { notifyError, errorMessage } from '../js/notify.js';
+
+export default (props, { $f7, $update }) => {
+  // F7 spreads route params directly into props (component-loader.js line 106):
+  //   componentProps = merge(route.params, ...)
+  // So for /clients/:id/edit/ the id comes from props.id, NOT props.f7route.
+  const id = props.id || null;
+  const isEdit = !!id;
+
+  let loading = true;
+  let saving = false;
+  let form = {
+    name: '',
+    email: '',
+    telegram_userid: '',
+    allocated_ips: '',
+    allowed_ips: '0.0.0.0/0',
+    extra_allowed_ips: '',
+    endpoint: '',
+    use_server_dns: true,
+    enabled: true,
+    additional_notes: '',
+    public_key: '',
+    preshared_key: '',
+  };
+
+  const toCSV = (arr) => (arr || []).join(', ');
+  const fromCSV = (str) => (str || '').split(',').map((s) => s.trim()).filter(Boolean);
+
+  const load = async () => {
+    loading = true;
+    $update();
+    try {
+      if (isEdit) {
+        const res = await api.get(`/wireguard/clients/get/${id}`);
+        const c = res.data.client;
+        form = {
+          name: c.name || '',
+          email: c.email || '',
+          telegram_userid: c.telegram_userid || '',
+          allocated_ips: toCSV(c.allocated_ips),
+          allowed_ips: toCSV(c.allowed_ips),
+          extra_allowed_ips: toCSV(c.extra_allowed_ips),
+          endpoint: c.endpoint || '',
+          use_server_dns: !!c.use_server_dns,
+          enabled: !!c.enabled,
+          additional_notes: c.additional_notes || '',
+          public_key: c.public_key || '',
+          preshared_key: c.preshared_key || '',
+        };
+      } else {
+        const res = await api.get('/wireguard/clients/defaults');
+        form.allowed_ips = toCSV(res.data.allowed_ips);
+        form.extra_allowed_ips = toCSV(res.data.extra_allowed_ips);
+        form.use_server_dns = !!res.data.use_server_dns;
+        form.enabled = !!res.data.enable_after_creation;
+      }
+    } catch (err) {
+      notifyError($f7, errorMessage(err, ApiError, 'Failed to load client data'));
+    } finally {
+      loading = false;
+      $update();
+    }
+  };
+
+  const suggestIP = async () => {
+    try {
+      const res = await api.get('/wireguard/clients/suggestips');
+      const suggestions = res.datas || [];
+      if (suggestions.length === 0) {
+        notifyError($f7, 'No IP address is available');
+        return;
+      }
+      const existing = fromCSV(form.allocated_ips);
+      form.allocated_ips = toCSV([...existing, ...suggestions.filter((ip) => !existing.includes(ip))]);
+      $update();
+    } catch (err) {
+      notifyError($f7, errorMessage(err, ApiError, 'Failed to suggest an IP address'));
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    saving = true;
+    $update();
+
+    const payload = {
+      id: id || undefined,
+      name: form.name,
+      email: form.email,
+      telegram_userid: form.telegram_userid,
+      allocated_ips: fromCSV(form.allocated_ips),
+      allowed_ips: fromCSV(form.allowed_ips),
+      extra_allowed_ips: fromCSV(form.extra_allowed_ips),
+      endpoint: form.endpoint,
+      use_server_dns: form.use_server_dns,
+      enabled: form.enabled,
+      additional_notes: form.additional_notes,
+      public_key: form.public_key,
+      preshared_key: form.preshared_key,
+    };
+
+    try {
+      if (isEdit) {
+        await api.post('/wireguard/clients/update', payload);
+      } else {
+        await api.post('/wireguard/clients/create', payload);
+      }
+      $f7.views.main.router.navigate('/', { reloadAll: true });
+    } catch (err) {
+      notifyError($f7, errorMessage(err, ApiError, 'Failed to save the client'));
+    } finally {
+      saving = false;
+      $update();
+    }
+  };
+
+  load();
+
+  return $render;
+};
+</script>

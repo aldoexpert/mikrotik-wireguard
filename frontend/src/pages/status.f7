@@ -1,0 +1,90 @@
+<template>
+  <div class="page" data-name="status">
+    <div class="navbar">
+      <div class="navbar-bg"></div>
+      <div class="navbar-inner">
+        <div class="left"><a href="#" class="link icon-only panel-open" data-panel=".panel-left"><i class="icon f7-icons if-not-md">menu</i><i class="icon material-icons md-only">menu</i></a></div>
+        <div class="title">Status</div>
+        <div class="right"><a href="#" class="link" @click="${(e) => { e.preventDefault(); load(); }}">Refresh</a></div>
+      </div>
+    </div>
+    <div class="page-content">
+      ${loading ? $h`<div class="block text-align-center"><div class="preloader"></div></div>` : ''}
+
+      ${devices.map((d) => $h`
+        <div class="block-title">${d.name}</div>
+        <div class="list media-list no-hairlines-md">
+          <ul>
+            ${(d.peers || []).map((p) => $h`
+              <li>
+                <div class="item-content">
+                  <div class="item-media"><span class="mtwg-status-dot ${p.connected ? 'on' : 'off'}"></span></div>
+                  <div class="item-inner">
+                    <div class="item-title-row"><div class="item-title">${p.name || p.public_key.slice(0, 12) + '...'}</div></div>
+                    <div class="item-subtitle">${p.allocated_ip}</div>
+                    <div class="item-text">
+                      ↓ ${formatBytes(p.received_bytes)} · ↑ ${formatBytes(p.transmit_bytes)}
+                      ${p.connected ? '' : $h` · last handshake ${formatAgo(p.last_handshake_secs_ago)}`}
+                    </div>
+                  </div>
+                </div>
+              </li>
+            `)}
+          </ul>
+        </div>
+      `)}
+
+      ${!loading && !hadError && devices.length === 0 ? $h`
+        <div class="block block-strong text-align-center">
+          <p>No WireGuard device detected.</p>
+          <p class="mtwg-muted">This reads the local WireGuard interface. Make sure a WireGuard interface is up on this host (see the Server page to configure and apply it), or that this backend has access to it.</p>
+        </div>
+      ` : ''}
+    </div>
+  </div>
+</template>
+<script>
+import api, { ApiError } from '../js/api.js';
+import { notifyError, errorMessage } from '../js/notify.js';
+
+export default (props, { $f7, $update }) => {
+  let devices = [];
+  let loading = true;
+  let hadError = false;
+
+  const formatBytes = (n) => {
+    if (!n) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let i = 0;
+    while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+    return `${n.toFixed(1)} ${units[i]}`;
+  };
+
+  const formatAgo = (secs) => {
+    if (!secs || secs <= 0) return 'never';
+    if (secs < 60) return `${Math.floor(secs)}s ago`;
+    if (secs < 3600) return `${Math.floor(secs / 60)}m ago`;
+    return `${Math.floor(secs / 3600)}h ago`;
+  };
+
+  const load = async () => {
+    loading = true;
+    hadError = false;
+    $update();
+    try {
+      const res = await api.get('/wireguard/status/get');
+      devices = res.datas || [];
+    } catch (err) {
+      hadError = true;
+      notifyError($f7, errorMessage(err, ApiError, 'Failed to load status'));
+    } finally {
+      loading = false;
+      $update();
+    }
+  };
+
+  load();
+
+  return $render;
+};
+</script>

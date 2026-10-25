@@ -1,0 +1,44 @@
+:root {
+  --mtwg-danger: #dc2626;
+  --mtwg-success: #16a34a;
+}
+
+.mtwg-status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+.mtwg-status-dot.on { background: var(--mtwg-success); }
+.mtwg-status-dot.off { background: var(--mtwg-danger); }
+
+.mtwg-login-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  padding: 24px 16px;
+}
+.mtwg-login-card {
+  width: 100%;
+  max-width: 380px;
+}
+.mtwg-muted {
+  color: var(--f7-block-footer-text-color, #777);
+  font-size: 13px;
+}
+
+.mtwg-panel-content {
+  display: flex;
+  flex-direction: column;
+}
+.mtwg-menu-container {
+  flex: 1 0 auto;
+}
+.mtwg-submenu li a {
+  padding-left: 32px;
+}
+.mtwg-user-footer {
+  border-top: 1px solid var(--f7-list-item-border-color, rgba(0, 0, 0, 0.1));
+}

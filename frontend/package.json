@@ -1,0 +1,32 @@
+{
+  "name": "mikrotik-wireguard-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Mikrotik WireGuard Manager -- admin PWA frontend",
+  "author": "Aldo <aldo-expert.com>",
+  "license": "MIT",
+  "scripts": {
+    "dev": "cross-env NODE_ENV=development vite",
+    "build": "cross-env NODE_ENV=production vite build && npx workbox generateSW workbox-config.js",
+    "preview": "vite preview"
+  },
+  "browserslist": [
+    "last 2 Chrome versions",
+    "last 2 Firefox versions",
+    "last 2 Safari versions",
+    "last 2 Edge versions"
+  ],
+  "dependencies": {
+    "framework7": "^9.2.0",
+    "framework7-icons": "^5.0.5",
+    "material-icons": "^1.13.14",
+    "dom7": "^4.0.6"
+  },
+  "devDependencies": {
+    "cpy-cli": "^7.0.0",
+    "cross-env": "^10.1.0",
+    "rollup-plugin-framework7": "^1.2.1",
+    "vite": "^8.3.4",
+    "workbox-cli": "^7.4.1"
+  }
+}

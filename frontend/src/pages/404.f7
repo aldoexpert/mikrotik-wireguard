@@ -1,0 +1,14 @@
+<template>
+  <div class="page" data-name="404">
+    <div class="navbar">
+      <div class="navbar-bg"></div>
+      <div class="navbar-inner"><div class="title">Page Not Found</div></div>
+    </div>
+    <div class="page-content">
+      <div class="block text-align-center">
+        <p>404 -- the page you're looking for doesn't exist.</p>
+        <a href="/" class="button button-fill">Back to Home</a>
+      </div>
+    </div>
+  </div>
+</template>

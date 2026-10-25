@@ -1,0 +1,49 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      args:
+        APP_VERSION: ${APP_VERSION:-dev}
+    image: indonetsoft/mikrotik-wireguard-backend:${APP_VERSION:-dev}
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    volumes:
+      - ./data:/app/data
+    environment:
+      MTWG_PORT: "8080"
+      MTWG_DB_PATH: /app/data
+      MTWG_DISABLE_LOGIN: ${MTWG_DISABLE_LOGIN:-false}
+      MTWG_JWT_SECRET: ${MTWG_JWT_SECRET:?set a long random MTWG_JWT_SECRET in .env}
+      MTWG_CORS_ALLOWED_ORIGINS: ${MTWG_CORS_ALLOWED_ORIGINS:-*}
+      MTWG_USERNAME: ${MTWG_USERNAME:-admin}
+      MTWG_PASSWORD: ${MTWG_PASSWORD:-admin}
+      MTWG_ENDPOINT_ADDRESS: ${MTWG_ENDPOINT_ADDRESS:-}
+      MTWG_SERVER_INTERFACE_ADDRESSES: ${MTWG_SERVER_INTERFACE_ADDRESSES:-10.252.1.0/24}
+      MTWG_SERVER_LISTEN_PORT: ${MTWG_SERVER_LISTEN_PORT:-51820}
+      MTWG_SMTP_HOSTNAME: ${MTWG_SMTP_HOSTNAME:-}
+      MTWG_SMTP_PORT: ${MTWG_SMTP_PORT:-25}
+      MTWG_SMTP_USERNAME: ${MTWG_SMTP_USERNAME:-}
+      MTWG_SMTP_PASSWORD: ${MTWG_SMTP_PASSWORD:-}
+      MTWG_EMAIL_FROM_ADDRESS: ${MTWG_EMAIL_FROM_ADDRESS:-}
+      MTWG_TELEGRAM_TOKEN: ${MTWG_TELEGRAM_TOKEN:-}
+      MTWG_SUBNET_RANGES: ${MTWG_SUBNET_RANGES:-}
+    # Local WireGuard device status (wgctrl) needs access to the host's
+    # network namespace / netlink socket. Not required once this project's
+    # next phase moves device management to Mikrotik RouterOS 7 over SSH.
+    # Uncomment if you still rely on a local wg0 interface:
+    # network_mode: host
+    # cap_add:
+    #   - NET_ADMIN
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080}
+    image: indonetsoft/mikrotik-wireguard-frontend:${APP_VERSION:-dev}
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-8081}:80"
+    depends_on:
+      - backend

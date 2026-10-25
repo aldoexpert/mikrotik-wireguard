@@ -1,0 +1,133 @@
+<template>
+  <div id="app">
+    ${session ? $h`
+      <!-- Left panel: main navigation (only exists once logged in) -->
+      <div class="panel panel-left panel-cover panel-init" data-visible-breakpoint="960">
+        <div class="view">
+          <div class="page">
+            <div class="navbar">
+              <div class="navbar-bg"></div>
+              <div class="navbar-inner">
+                <div class="title">Mikrotik WireGuard</div>
+              </div>
+            </div>
+            <div class="page-content mtwg-panel-content">
+              <div class="mtwg-menu-container">
+                ${menuLoading ? $h`
+                  <div class="block text-align-center"><div class="preloader"></div></div>
+                ` : menuGroups.length > 0 ? $h`
+                  <div class="list accordion-list no-hairlines-md">
+                    <ul>
+                      ${menuGroups.map((group) => $h`
+                        <li class="accordion-item accordion-item-opened">
+                          <a href="#" class="item-link item-content">
+                            <div class="item-media"><i class="icon f7-icons">${group.icon || 'square_grid_2x2'}</i></div>
+                            <div class="item-inner">
+                              <div class="item-title">${group.header}</div>
+                            </div>
+                          </a>
+                          <div class="accordion-item-content">
+                            <div class="list links-list no-hairlines-md mtwg-submenu">
+                              <ul>
+                                ${group.list.map((item) => $h`
+                                  <li><a href="${item.link}" class="panel-close" data-view=".view-main">${item.label}</a></li>
+                                `)}
+                              </ul>
+                            </div>
+                          </div>
+                        </li>
+                      `)}
+                    </ul>
+                  </div>
+                ` : $h`
+                  <div class="block text-align-center mtwg-muted">No menu available.</div>
+                `}
+              </div>
+
+              <div class="list links-list no-hairlines-md">
+                <ul>
+                  <li><a href="/about/" class="panel-close" data-view=".view-main">About</a></li>
+                  <li>
+                    <a href="#" class="item-link item-content text-color-red" @click="${handleLogout}">
+                      Logout
+                    </a>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- User footer -->
+            <a href="/profile/" class="mtwg-user-footer item-link item-content panel-close" data-view=".view-main">
+              <div class="item-media"><i class="icon f7-icons">person_crop_circle</i></div>
+              <div class="item-inner">
+                <div class="item-title">${session.username}</div>
+                <div class="item-subtitle mtwg-muted">${session.admin ? 'Admin' : 'Manager'}</div>
+              </div>
+            </a>
+          </div>
+        </div>
+      </div>
+    ` : ''}
+
+    <!-- Main view -->
+    <div class="view view-main view-init safe-areas" data-url="/"></div>
+  </div>
+</template>
+<script>
+import api from './js/api.js';
+
+export default (props, { $f7, $update }) => {
+  let session = $f7.store.getters.session.value;
+  let menuGroups = [];
+  let menuLoading = false;
+
+  const loadMenu = async () => {
+    if (!session) {
+      menuGroups = [];
+      return;
+    }
+    menuLoading = true;
+    $update();
+    try {
+      const res = await api.get('/auth/session/menu');
+      menuGroups = res.datas || [];
+    } catch (err) {
+      menuGroups = [];
+    } finally {
+      menuLoading = false;
+      $update();
+    }
+  };
+
+  // Show the panel right away instead of requiring the user to swipe/tap
+  // the hamburger icon themselves after logging in.
+  const openPanel = () => {
+    setTimeout(() => {
+      if (session) $f7.panel.open('left');
+    }, 50);
+  };
+
+  // Framework7's store has no .watch(); getters subscribe via onUpdated().
+  $f7.store.getters.session.onUpdated((value) => {
+    session = value;
+    $update();
+    loadMenu();
+    openPanel();
+  });
+
+  loadMenu();
+  openPanel(); // already logged in on mount (e.g. page refresh)
+
+  const handleLogout = (e) => {
+    e.preventDefault();
+    $f7.store.dispatch('clearSession');
+    // A full reload (instead of a router.navigate) avoids the panel being
+    // removed from the DOM mid-close-animation while the view stack is
+    // simultaneously reset -- that race left the app rendering blank.
+    // Same pattern api.js already uses when a 401 forces a logout.
+    window.location.href = '/login/';
+  };
+
+  return $render;
+};
+</script>

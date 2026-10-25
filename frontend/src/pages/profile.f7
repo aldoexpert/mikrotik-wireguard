@@ -1,0 +1,90 @@
+<template>
+  <div class="page" data-name="profile">
+    <div class="navbar">
+      <div class="navbar-bg"></div>
+      <div class="navbar-inner">
+        <div class="left"><a href="#" class="link icon-only panel-open" data-panel=".panel-left"><i class="icon f7-icons if-not-md">menu</i><i class="icon material-icons md-only">menu</i></a></div>
+        <div class="title">Profile</div>
+      </div>
+    </div>
+    <div class="page-content">
+      ${loading ? $h`<div class="block text-align-center"><div class="preloader"></div></div>` : $h`
+        <form @submit="${handleSubmit}">
+          <div class="list no-hairlines-md">
+            <ul>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">Username</div>
+                    <div class="item-input-wrap"><input type="text" required value="${form.username}" @input="${(e) => { form.username = e.target.value; }}" /></div>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">New Password (leave blank to keep it)</div>
+                    <div class="item-input-wrap"><input type="password" value="${form.password}" @input="${(e) => { form.password = e.target.value; }}" /></div>
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </div>
+          <div class="block"><button type="submit" class="button button-fill button-large">Save</button></div>
+        </form>
+      `}
+    </div>
+  </div>
+</template>
+<script>
+import api, { ApiError } from '../js/api.js';
+import { notifySuccess, notifyError, errorMessage } from '../js/notify.js';
+
+export default (props, { $f7, $update }) => {
+  let loading = true;
+  let previousUsername = '';
+  let form = { username: '', password: '' };
+
+  const load = async () => {
+    loading = true;
+    $update();
+    try {
+      const res = await api.get('/auth/session/profile');
+      previousUsername = res.data.username;
+      form.username = res.data.username;
+    } catch (err) {
+      notifyError($f7, errorMessage(err, ApiError, 'Failed to load the profile'));
+    } finally {
+      loading = false;
+      $update();
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await api.post('/users/account/update', {
+        username: form.username,
+        password: form.password,
+        previous_username: previousUsername,
+        admin: $f7.store.getters.isAdmin.value,
+      });
+      if (res.data && res.data.token) {
+        const session = $f7.store.getters.session.value;
+        $f7.store.dispatch('setSession', { ...session, token: res.data.token, username: form.username });
+      }
+      previousUsername = form.username;
+      form.password = '';
+      notifySuccess($f7, 'Profile updated successfully.');
+    } catch (err) {
+      notifyError($f7, errorMessage(err, ApiError, 'Failed to update the profile'));
+    } finally {
+      $update();
+    }
+  };
+
+  load();
+
+  return $render;
+};
+</script>

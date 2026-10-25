@@ -1,0 +1,238 @@
+<template>
+  <div class="page" data-name="clients">
+    <div class="navbar">
+      <div class="navbar-bg"></div>
+      <div class="navbar-inner sliding">
+        <div class="left"><a href="#" class="link icon-only panel-open" data-panel=".panel-left"><i class="icon f7-icons if-not-md">menu</i><i class="icon material-icons md-only">menu</i></a></div>
+        <div class="title">WireGuard Clients</div>
+        <div class="right">
+          <a href="#" class="link icon-only searchbar-enable" data-searchbar=".mtwg-clients-searchbar">
+            <i class="icon f7-icons if-not-md">search</i>
+            <i class="icon material-icons md-only">search</i>
+          </a>
+          <a href="/clients/new/" class="link icon-only">
+            <i class="icon f7-icons if-not-md">plus</i>
+            <i class="icon material-icons md-only">add</i>
+          </a>
+        </div>
+        <form class="searchbar searchbar-init mtwg-clients-searchbar searchbar-expandable" data-search-container=".mtwg-clients-list" data-search-in=".item-title">
+          <div class="searchbar-inner">
+            <div class="searchbar-input-wrap">
+              <input type="search" placeholder="Search clients" />
+              <i class="searchbar-icon"></i>
+              <span class="input-clear-button"></span>
+            </div>
+            <span class="searchbar-disable-button">Cancel</span>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="page-content">
+      ${loading ? $h`<div class="block text-align-center"><div class="preloader"></div></div>` : ''}
+
+      ${!loading && !hadError && clients.length === 0 ? $h`
+        <div class="block block-strong text-align-center">
+          <p>No WireGuard clients yet.</p>
+          <p class="mtwg-muted">Tap the + button in the top right to add your first client. Make sure the server's interface address is configured first (see the Server page) so an IP can be suggested.</p>
+          <a href="/clients/new/" class="button button-fill">Add Client</a>
+        </div>
+      ` : ''}
+
+      <div class="list media-list no-hairlines-md searchbar-not-found">
+        <ul><li class="item-content"><div class="item-inner"><div class="item-title">Nothing found</div></div></li></ul>
+      </div>
+
+      <div class="list media-list no-hairlines-md searchbar-found mtwg-clients-list">
+        <ul>
+          ${clients.map((cd) => $h`
+            <li class="swipeout">
+              <div class="item-content swipeout-content">
+                <div class="item-media" @click="${() => openActions(cd.client)}">
+                  <span class="mtwg-status-dot ${cd.client.enabled ? 'on' : 'off'}"></span>
+                </div>
+                <div class="item-inner" @click="${() => openActions(cd.client)}">
+                  <div class="item-title-row">
+                    <div class="item-title">${cd.client.name}</div>
+                    <div class="item-after">
+                      <label class="toggle" @click="${(e) => e.stopPropagation()}">
+                        <input type="checkbox" ${cd.client.enabled ? 'checked' : ''} @change="${() => toggleStatus(cd.client)}" />
+                        <span class="toggle-icon"></span>
+                      </label>
+                    </div>
+                  </div>
+                  <div class="item-subtitle">${(cd.client.allocated_ips || []).join(', ')}</div>
+                  <div class="item-text">${cd.client.email || ''} ${cd.client.telegram_userid ? ('· TG ' + cd.client.telegram_userid) : ''}</div>
+                </div>
+              </div>
+              <div class="swipeout-actions-right">
+                <a href="/clients/${cd.client.id}/edit/" class="swipeout-close">Edit</a>
+                <a href="#" class="swipeout-delete color-red" @click="${(e) => { e.preventDefault(); removeClient(cd.client); }}">Delete</a>
+              </div>
+            </li>
+          `)}
+        </ul>
+      </div>
+    </div>
+
+    <!-- QR Code popup -->
+    <div class="popup mtwg-qr-popup">
+      <div class="page">
+        <div class="navbar">
+          <div class="navbar-bg"></div>
+          <div class="navbar-inner">
+            <div class="title">QR Code</div>
+            <div class="right"><a href="#" class="link popup-close">Close</a></div>
+          </div>
+        </div>
+        <div class="page-content">
+          <div class="block text-align-center">
+            <p class="mtwg-muted">${activeClient ? activeClient.name : ''}</p>
+            ${qrLoading ? $h`<div class="preloader"></div>` : ''}
+            ${qrCode ? $h`<img src="${qrCode}" style="max-width:280px;width:100%;border-radius:8px;" alt="WireGuard QR Code" />` : ''}
+            ${!qrLoading && !qrCode ? $h`<p class="mtwg-muted">QR code not available</p>` : ''}
+          </div>
+          <div class="block">
+            <p class="mtwg-muted text-align-center" style="font-size:13px;">Scan this with the WireGuard mobile app to import the configuration.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions sheet -->
+    <div class="sheet-modal mtwg-client-actions">
+      <div class="sheet-modal-inner">
+        <div class="page-content">
+          <div class="list no-hairlines-md">
+            <ul>
+              <li><a href="#" class="item-link item-content sheet-close" @click="${(e) => { e.preventDefault(); showQRCode(); }}"><div class="item-inner"><div class="item-title">Show QR Code</div></div></a></li>
+              <li><a href="#" class="item-link item-content sheet-close" @click="${(e) => { e.preventDefault(); downloadConfig(); }}"><div class="item-inner"><div class="item-title">Download .conf</div></div></a></li>
+              <li><a href="#" class="item-link item-content sheet-close" @click="${(e) => { e.preventDefault(); promptEmail(); }}"><div class="item-inner"><div class="item-title">Send via Email</div></div></a></li>
+              <li><a href="#" class="item-link item-content sheet-close" @click="${(e) => { e.preventDefault(); sendTelegram(); }}"><div class="item-inner"><div class="item-title">Send via Telegram</div></div></a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import api, { ApiError } from '../js/api.js';
+import { notifySuccess, notifyError, errorMessage } from '../js/notify.js';
+
+export default (props, { $f7, $update, $on }) => {
+  let clients = [];
+  let loading = true;
+  let hadError = false;
+  let activeClient = null;
+  let qrCode = '';
+  let qrLoading = false;
+
+  const load = async () => {
+    loading = true;
+    hadError = false;
+    $update();
+    try {
+      const res = await api.get('/wireguard/clients/list');
+      clients = res.datas || [];
+    } catch (err) {
+      hadError = true;
+      notifyError($f7, errorMessage(err, ApiError, 'Failed to load the client list'));
+    } finally {
+      loading = false;
+      $update();
+    }
+  };
+
+  // Reload the list each time this page becomes visible (including returning
+  // from the Add/Edit form), so newly created or updated clients appear.
+  $on('pageAfterIn', load);
+
+  const toggleStatus = async (client) => {
+    try {
+      await api.post('/wireguard/clients/setstatus', { id: client.id, status: !client.enabled });
+      client.enabled = !client.enabled;
+      $update();
+    } catch (err) {
+      notifyError($f7, errorMessage(err, ApiError, 'Failed to change the client status'));
+    }
+  };
+
+  const removeClient = (client) => {
+    $f7.dialog.confirm(`Delete client "${client.name}"?`, async () => {
+      try {
+        await api.post('/wireguard/clients/delete', { id: client.id });
+        clients = clients.filter((cd) => cd.client.id !== client.id);
+        $update();
+      } catch (err) {
+        notifyError($f7, errorMessage(err, ApiError, 'Failed to delete the client'));
+      }
+    });
+  };
+
+  const openActions = (client) => {
+    activeClient = client;
+    $f7.sheet.open('.mtwg-client-actions');
+  };
+
+  const showQRCode = async () => {
+    if (!activeClient) return;
+    qrCode = '';
+    qrLoading = true;
+    $update();
+    $f7.popup.open('.mtwg-qr-popup');
+    try {
+      const res = await api.get(`/wireguard/clients/get/${activeClient.id}`);
+      qrCode = res.data.qr_code || '';
+    } catch (err) {
+      notifyError($f7, errorMessage(err, ApiError, 'Failed to load QR code'));
+      $f7.popup.close('.mtwg-qr-popup');
+    } finally {
+      qrLoading = false;
+      $update();
+    }
+  };
+
+  const downloadConfig = async () => {
+    if (!activeClient) return;
+    try {
+      await api.download(`/wireguard/clients/download/${activeClient.id}`, `${activeClient.name}.conf`);
+    } catch (err) {
+      notifyError($f7, errorMessage(err, ApiError, 'Failed to download the configuration'));
+    }
+  };
+
+  const promptEmail = () => {
+    if (!activeClient) return;
+    // dialog.prompt(text, title, callbackOk, callbackCancel, defaultValue)
+    $f7.dialog.prompt(
+      'Send the configuration to this email address:',
+      'Send Email',
+      async (email) => {
+        try {
+          await api.post('/wireguard/clients/email', { id: activeClient.id, email });
+          notifySuccess($f7, 'Email sent');
+        } catch (err) {
+          notifyError($f7, errorMessage(err, ApiError, 'Failed to send the email'));
+        }
+      },
+      undefined,
+      activeClient.email || ''
+    );
+  };
+
+  const sendTelegram = async () => {
+    if (!activeClient) return;
+    try {
+      await api.post('/wireguard/clients/telegram', { id: activeClient.id, userid: activeClient.telegram_userid });
+      notifySuccess($f7, 'Sent via Telegram');
+    } catch (err) {
+      notifyError($f7, errorMessage(err, ApiError, 'Failed to send via Telegram'));
+    }
+  };
+
+  load();
+
+  return $render;
+};
+</script>

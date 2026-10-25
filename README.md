@@ -204,7 +204,7 @@ fill in:
 
 | Field | Example |
 |---|---|
-| Host / IP Address | `203.0.113.10` |
+| Host / IP Address | `203.0.113.10` (example -- use your router's actual address) |
 | SSH Port | `22` (or a custom port, e.g. `8222`, if that's what the router's SSH service listens on) |
 | Username | `wgmanager` |
 | WireGuard Interface Name | `wireguard1` (created automatically if it doesn't exist) |

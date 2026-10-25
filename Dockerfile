@@ -32,19 +32,20 @@ RUN CGO_ENABLED=0 go build \
     ./cmd/api
 
 # ---- Stage 3: runtime ------------------------------------------------------
+# Runs as root: /app/data is a host bind mount (see docker-compose.yaml), so
+# its ownership comes from the host, not this image -- a non-root user here
+# would need its UID/GID to match the host directory's, which isn't under
+# this image's control. Root always has permission to create files there
+# regardless of the host-side ownership.
 FROM alpine:3.20
 
-RUN apk add --no-cache ca-certificates tzdata && \
-    addgroup -S app && adduser -S app -G app
+RUN apk add --no-cache ca-certificates tzdata
 
 WORKDIR /app
 COPY --from=builder /out/mikrotik-wireguard ./mikrotik-wireguard
 
-RUN mkdir -p /app/db && chown -R app:app /app
-USER app
-
 ENV MTWG_PORT=8200
-ENV MTWG_DB_PATH=/app/db
+ENV MTWG_DB_PATH=/app/data
 EXPOSE 8200
 
 HEALTHCHECK --interval=30s --timeout=3s CMD wget -qO- http://127.0.0.1:8200/system/misc/health || exit 1

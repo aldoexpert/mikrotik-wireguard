@@ -1,12 +1,11 @@
-  # Mikrotik WireGuard Manager
+# Mikrotik WireGuard Manager
+
+> A web panel to manage WireGuard, built for **Mikrotik RouterOS 7** management over **remote SSH** — deploy once, manage your VPN from any browser.
 
 **Author:** Aldo · [aldo-expert.com](https://aldo-expert.com)
 **Company:** [indonetsoft.com](https://indonetsoft.com)
-**Stack:** Go (backend) · Framework7 PWA (frontend)
+**Stack:** Go (backend) · Framework7 PWA (frontend, embedded into the binary)
 **License:** MIT
-
-A web panel to manage WireGuard, built for **Mikrotik RouterOS 7** management
-over **remote SSH** — deploy once, manage your VPN from any browser.
 
 > **Current status:** the backend/frontend split is complete, every original
 > WireGuard feature (clients, server, global settings, status, users,
@@ -16,12 +15,171 @@ over **remote SSH** — deploy once, manage your VPN from any browser.
 
 ---
 
-## Architecture
+## Table of Contents
+
+1. [Installation (Docker)](#installation-docker)
+2. [Overview & Architecture](#overview--architecture)
+3. [Environment Variables](#environment-variables)
+4. [Development (without Docker)](#development-without-docker)
+5. [Features](#features)
+6. [Roadmap](#roadmap)
+7. [Mikrotik Integration](#mikrotik-integration)
+
+---
+
+## Installation (Docker)
+
+### Prerequisites
+
+- Docker ≥ 24.x
+- Docker Compose v2 (`docker compose`, not the old `docker-compose`)
+- One free port on the server (default `8200`) — serves **both** the UI and the API
+
+> **No build needed.** The image is pre-built on GitHub Container Registry
+> for `linux/amd64` and `linux/arm64`: `ghcr.io/aldoexpert/mikrotik-wireguard`.
+> Docker automatically pulls the one matching your server's architecture.
+
+### Installation Steps
+
+**1. Clone the repository** *(only needed to get `docker-compose.yaml` and `.env.example`)*
+
+```bash
+git clone https://github.com/aldoexpert/mikrotik-wireguard.git
+cd mikrotik-wireguard
+```
+
+**2. Create the config file**
+
+```bash
+cp .env.example .env
+```
+
+**3. Edit `.env` — fill in the required values**
+
+```bash
+nano .env
+```
+
+At minimum, set:
+
+```env
+# Generate with: openssl rand -hex 32
+MTWG_JWT_SECRET=replace-with-a-long-random-string
+
+# The address clients use to connect (your VPS/router's public IP)
+MTWG_ENDPOINT_ADDRESS=203.0.113.10
+```
+
+> Generate a secret with: `openssl rand -hex 32`
+
+**4. Run it**
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Docker pulls `ghcr.io/aldoexpert/mikrotik-wireguard:latest` — no local build.
+
+**5. Open the app**
+
+```
+http://<SERVER-IP>:8200
+```
+
+Log in with:
+- **Username:** `admin`
+- **Password:** `admin`
+
+> **Change the password immediately** after your first login, on the Profile page.
+
+---
+
+### Update / Upgrade
+
+Since the image is pre-built on the registry, upgrading is just a pull + restart:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+> **Don't run `docker compose down -v`** — the `-v` flag deletes the volume
+> and all your data (clients, keys, settings).
+
+Persistent data lives on the host in `./data` (bind mount, see `docker-compose.yaml`), so it survives image upgrades untouched.
+
+---
+
+### Build from Source (Developer)
+
+If you want to build the image yourself (e.g. after modifying the code):
+
+```bash
+docker compose build --no-cache
+docker compose up -d
+```
+
+To build multi-arch and push to your own registry:
+
+```bash
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -t ghcr.io/<your-username>/mikrotik-wireguard:latest --push .
+```
+
+---
+
+### Port Used
+
+| Port | Purpose |
+|---|---|
+| `8200` | UI + API, single port (set via `APP_PORT` in `.env`) |
+| `51820/udp` | The WireGuard tunnel itself, on whichever host actually runs `wg0` (not this container, unless you still rely on a local interface — see the commented `network_mode: host` block in `docker-compose.yaml`) |
+
+---
+
+### Troubleshooting
+
+**View logs:**
+```bash
+docker compose logs -f app
+```
+
+**Restart:**
+```bash
+docker compose restart app
+```
+
+**Container status:**
+```bash
+docker compose ps
+```
+
+**Forgot the admin password:**
+
+There's no `reset-password` CLI yet. The initial admin user is only
+auto-seeded while `./data/users/` is empty, so to get back in:
+
+```bash
+docker compose stop app
+rm -rf ./data/users
+# optionally set MTWG_USERNAME / MTWG_PASSWORD in .env first
+docker compose up -d
+```
+
+A fresh admin user is re-seeded from `MTWG_USERNAME` / `MTWG_PASSWORD`
+(default `admin` / `admin`) on the next start. This only touches the
+`users/` data — clients, server keys and settings are untouched.
+
+---
+
+## Overview & Architecture
 
 ```
 mikrotik-wireguard/
-├── backend/                 # Go REST API (no UI here)
+├── backend/                 # Go REST API + embedded frontend
 │   ├── cmd/api/             # entry point
+│   ├── web/                 # //go:embed of the built frontend (web/dist/)
 │   └── internal/
 │       ├── core/            # module/controller/method router + JSON response
 │       ├── config/          # flags + env vars (MTWG_*)
@@ -49,34 +207,17 @@ with a consistent JSON envelope:
 
 Auth uses a **JWT Bearer token** (not a cookie session). The frontend is a
 static Framework7 PWA that is built and embedded straight into the Go
-binary (see `Dockerfile`), so in production both the API and the UI are
-served from the same origin/port -- no CORS/CSRF concerns there either.
-There's no granular RBAC -- just an `admin` flag per user, matching
-wireguard-ui's original design.
+binary (see `Dockerfile` and `backend/web/embed.go`), so in production both
+the API and the UI are served from the same origin/port -- no CORS/CSRF
+concerns there either. There's no granular RBAC -- just an `admin` flag per
+user, matching wireguard-ui's original design.
 
 Data is stored as JSON files under `data/` on the host (no MySQL/Postgres),
 so deployment stays lightweight for a single container.
 
 ---
 
-## Quick Start (Docker Compose)
-
-```bash
-cp .env.example .env
-# edit .env: at minimum set MTWG_JWT_SECRET and MTWG_ENDPOINT_ADDRESS
-
-docker compose up -d --build
-```
-
-- App (frontend + API, single port): http://localhost:8200
-  (default login `admin` / `admin`, **change it** on the Profile page right
-  after your first login)
-
-Persistent data is stored in `./data` on the host (see `docker-compose.yaml`).
-
----
-
-## Environment Variables (backend)
+## Environment Variables
 
 Every variable uses the `MTWG_` prefix. The full list is in
 [`.env.example`](.env.example). The important ones:
@@ -85,7 +226,7 @@ Every variable uses the `MTWG_` prefix. The full list is in
 |---|---|---|
 | `MTWG_JWT_SECRET` | *(required)* | The JWT session signing key. Change it for every production deploy. |
 | `MTWG_DISABLE_LOGIN` | `false` | Disables authentication. **Never use this in production.** |
-| `MTWG_CORS_ALLOWED_ORIGINS` | `*` | Frontend origins allowed to call the API. |
+| `MTWG_CORS_ALLOWED_ORIGINS` | `*` | Allowed CORS origin(s). Not needed for the normal single-port setup (same-origin); only set this if you call the API from a different origin. |
 | `MTWG_USERNAME` / `MTWG_PASSWORD` | `admin` / `admin` | Initial admin user, only used while the database is still empty. |
 | `MTWG_SERVER_INTERFACE_ADDRESSES` | `10.252.1.1/24` | The WireGuard VPN subnet. The server itself owns `.1`; client IPs (auto-suggested or manual) start from `.2` -- `.1`, the network address (`.0`) and the broadcast address (`.255`) are always excluded. |
 | `MTWG_SERVER_LISTEN_PORT` | `51820` | The WireGuard UDP port. |
@@ -93,6 +234,7 @@ Every variable uses the `MTWG_` prefix. The full list is in
 | `MTWG_SUBNET_RANGES` | *(empty)* | Extra IP pools, format `name1:cidr1,cidr2;name2:cidr3`. |
 | `MTWG_SMTP_*`, `MTWG_SENDGRID_API_KEY` | *(empty)* | Send client configs by email. |
 | `MTWG_TELEGRAM_TOKEN` | *(empty)* | Send client configs via a Telegram bot. |
+| `APP_PORT` | `8200` | Host port published by `docker-compose.yaml` (container always listens on `8200` internally). |
 
 ---
 
@@ -126,9 +268,8 @@ container/process.
 To test that single-binary setup locally without Docker:
 
 ```bash
-cd frontend && npm install --legacy-peer-deps && npm run build
-rm -rf ../backend/web/dist && cp -r www ../backend/web/dist
-cd ../backend && go run ./cmd/api   # now serving UI + API on :8200
+cd backend && make build-frontend   # builds ../frontend and syncs into web/dist/
+go run ./cmd/api                    # now serving UI + API on :8200
 ```
 
 ---
@@ -145,19 +286,22 @@ cd ../backend && go run ./cmd/api   # now serving UI + API on :8200
   WireGuard device, or from a Mikrotik router when that integration is enabled
 - **Mikrotik RouterOS 7 integration over SSH**: push the server interface
   and client peers to a real router instead of (or alongside) the local
-  `wg0.conf` -- see "Mikrotik integration" below
+  `wg0.conf` -- see [Mikrotik Integration](#mikrotik-integration) below
 - Wake-on-LAN for hosts on the same LAN
 - Installable PWA (Framework7) -- can be installed as an app on desktop/mobile
+
+---
 
 ## Roadmap
 
 - [ ] Multi-router Mikrotik support per instance (today: one router per app instance)
 - [ ] Pin the Mikrotik SSH host key fingerprint instead of trusting it on
-      first connect (see "Mikrotik integration" below)
+      first connect (see [Mikrotik Integration](#mikrotik-integration) below)
+- [ ] `reset-password` CLI (today: manual, see [Troubleshooting](#troubleshooting))
 
 ---
 
-## Mikrotik integration
+## Mikrotik Integration
 
 When enabled, clicking **Apply Configuration** on the Server page pushes the
 WireGuard interface and every enabled client (as a peer) to a Mikrotik
@@ -212,4 +356,3 @@ fill in:
 
 Use **Test Connection** to verify before saving, then toggle **Enabled** and
 save. The next "Apply Configuration" on the Server page syncs to the router.
-

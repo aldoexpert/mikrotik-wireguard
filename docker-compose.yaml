@@ -4,7 +4,11 @@ services:
       context: .
       args:
         APP_VERSION: ${APP_VERSION:-dev}
-    image: ghcr.io/aldoexpert/mikrotik-wireguard:${APP_VERSION:-dev}
+    # Tag published by CI on every push to main/master: "latest" (or a
+    # semver tag like "1.2.3" for a release build -- set APP_VERSION in
+    # .env to pin one). "dev" is NOT published; it's only a local build-arg
+    # label (see build.args below) for images you build yourself.
+    image: ghcr.io/aldoexpert/mikrotik-wireguard:${APP_VERSION:-latest}
     restart: unless-stopped
     ports:
       - "${APP_PORT:-8200}:8200"

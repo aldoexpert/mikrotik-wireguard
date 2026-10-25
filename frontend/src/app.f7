@@ -100,8 +100,16 @@ export default (props, { $f7, $update }) => {
   };
 
   // Show the panel right away instead of requiring the user to swipe/tap
-  // the hamburger icon themselves after logging in.
+  // the hamburger icon themselves after logging in -- but only on narrow
+  // viewports where the panel is an overlay the user must open. At/above
+  // the 960px breakpoint (data-visible-breakpoint on the panel element
+  // above) the panel is already permanently visible as part of the
+  // layout; calling .open() there forces it to run its "slide in from
+  // offscreen" open animation on an element that should have just been
+  // statically there, which is the login-success "popup" glitch.
+  const PANEL_VISIBLE_BREAKPOINT = 960;
   const openPanel = () => {
+    if (window.innerWidth >= PANEL_VISIBLE_BREAKPOINT) return;
     setTimeout(() => {
       if (session) $f7.panel.open('left');
     }, 50);

@@ -88,7 +88,7 @@ Every variable uses the `MTWG_` prefix. The full list is in
 | `MTWG_DISABLE_LOGIN` | `false` | Disables authentication. **Never use this in production.** |
 | `MTWG_CORS_ALLOWED_ORIGINS` | `*` | Frontend origins allowed to call the API. |
 | `MTWG_USERNAME` / `MTWG_PASSWORD` | `admin` / `admin` | Initial admin user, only used while the database is still empty. |
-| `MTWG_SERVER_INTERFACE_ADDRESSES` | `10.252.1.0/24` | The WireGuard VPN subnet. |
+| `MTWG_SERVER_INTERFACE_ADDRESSES` | `10.252.1.1/24` | The WireGuard VPN subnet. The server itself owns `.1`; client IPs (auto-suggested or manual) start from `.2` -- `.1`, the network address (`.0`) and the broadcast address (`.255`) are always excluded. |
 | `MTWG_SERVER_LISTEN_PORT` | `51820` | The WireGuard UDP port. |
 | `MTWG_ENDPOINT_ADDRESS` | *(auto-detected public IP)* | The address clients use to connect. |
 | `MTWG_SUBNET_RANGES` | *(empty)* | Extra IP pools, format `name1:cidr1,cidr2;name2:cidr3`. |
@@ -156,6 +156,10 @@ router instead of the local kernel WireGuard device.
   peer it didn't create.
 - Disabling or deleting a client removes its peer from the router on the
   next Apply; re-enabling it recreates the peer.
+- The server's own `/ip address` (e.g. `10.252.1.1/24`) is also synced onto
+  the WireGuard interface -- without it the router has no routable address
+  inside the tunnel subnet, so peers could handshake but traffic to the
+  server itself would have nowhere to go.
 - Authentication is **always by SSH key**, never password.
 
 ### One-time setup on the router

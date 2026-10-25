@@ -301,16 +301,20 @@ func GetBroadcastIP(n *net.IPNet) net.IP {
 }
 
 // GetBroadcastAndNetworkAddrsLookup returns the set of addresses that can't
-// be assigned to a client (network + broadcast address of each interface).
+// be assigned to a client: each interface's network address, broadcast
+// address, and its own configured host address (e.g. server = x.x.x.1 --
+// that specific address must never be suggested to a client, regardless
+// of whether it happens to equal the network address or not).
 func GetBroadcastAndNetworkAddrsLookup(interfaceAddresses []string) map[string]bool {
 	list := make(map[string]bool)
 	for _, ifa := range interfaceAddresses {
-		_, netAddr, err := net.ParseCIDR(ifa)
+		ip, netAddr, err := net.ParseCIDR(ifa)
 		if err != nil {
 			continue
 		}
 		list[GetBroadcastIP(netAddr).String()] = true
 		list[netAddr.IP.String()] = true
+		list[ip.String()] = true
 	}
 	return list
 }
@@ -346,10 +350,16 @@ func GetAvailableIP(cidr string, allocatedList, interfaceAddresses []string) (st
 // ValidateIPAllocation checks that every CIDR in ipAllocationList is
 // correctly formatted, not already allocated, and inside serverAddresses.
 func ValidateIPAllocation(serverAddresses, ipAllocatedList, ipAllocationList []string) (bool, error) {
+	reserved := GetBroadcastAndNetworkAddrsLookup(serverAddresses)
+
 	for _, clientCIDR := range ipAllocationList {
 		ip, _, _ := net.ParseCIDR(clientCIDR)
 		if ip == nil {
 			return false, fmt.Errorf("invalid ip allocation input %s. Must be in CIDR format", clientCIDR)
+		}
+
+		if reserved[ip.String()] {
+			return false, fmt.Errorf("IP %s is reserved for the WireGuard server/network itself", ip)
 		}
 
 		for _, item := range ipAllocatedList {

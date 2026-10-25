@@ -271,6 +271,15 @@ func quote(s string) string {
 // longer enabled have their peer removed, and anything on the interface
 // that this app didn't create (comment not starting with "mtwg:") is
 // left untouched.
+//
+// Every add-vs-update-vs-remove decision is made here in Go, from a
+// snapshot read up front -- never via a RouterOS `:if ([:len ...] = 0)
+// do={add} else={set}` script idiom. That idiom turned out to pick the
+// "add" branch even when the item already existed (RouterOS logged
+// "already have interface"/"entry already exists" and silently left the
+// stale fields in place), so updates to an existing peer/interface never
+// actually applied. Reading first and emitting only direct, unconditional
+// commands avoids that failure mode entirely.
 func ApplySync(settings model.MikrotikSettings, server model.Server, clients []model.ClientData, globalSettings model.GlobalSetting) error {
 	client, err := Dial(settings)
 	if err != nil {
@@ -283,6 +292,19 @@ func ApplySync(settings model.MikrotikSettings, server model.Server, clients []m
 		ifName = defaultInterfaceName
 	}
 
+	ifaceExists, err := interfaceExists(client, ifName)
+	if err != nil {
+		return err
+	}
+	existingAddrs, err := existingAddresses(client, ifName)
+	if err != nil {
+		return err
+	}
+	existingPeers, err := existingPeerComments(client, ifName)
+	if err != nil {
+		return err
+	}
+
 	var script strings.Builder
 
 	// 1. Ensure the WireGuard interface exists with the current server
@@ -291,9 +313,28 @@ func ApplySync(settings model.MikrotikSettings, server model.Server, clients []m
 	if globalSettings.MTU > 0 {
 		ifArgs += fmt.Sprintf(" mtu=%d", globalSettings.MTU)
 	}
-	fmt.Fprintf(&script, ":local ifId [/interface wireguard find where name=%s]\n", quote(ifName))
-	fmt.Fprintf(&script, ":if ([:len $ifId] = 0) do={ /interface wireguard add name=%s %s } else={ /interface wireguard set $ifId %s }\n",
-		quote(ifName), ifArgs, ifArgs)
+	if ifaceExists {
+		fmt.Fprintf(&script, "/interface wireguard set [find where name=%s] %s\n", quote(ifName), ifArgs)
+	} else {
+		fmt.Fprintf(&script, "/interface wireguard add name=%s %s\n", quote(ifName), ifArgs)
+	}
+
+	// 1b. Ensure the interface's own IP address(es) are assigned on the
+	//     router (/ip address) -- without this the router has no routable
+	//     address inside the tunnel subnet, so peers can handshake but
+	//     traffic to/from "the server" itself has nowhere to go.
+	desiredAddrs := make(map[string]bool, len(server.Interface.Addresses))
+	for _, addr := range server.Interface.Addresses {
+		desiredAddrs[addr] = true
+		if !existingAddrs[addr] {
+			fmt.Fprintf(&script, "/ip address add interface=%s address=%s\n", quote(ifName), quote(addr))
+		}
+	}
+	for addr := range existingAddrs {
+		if !desiredAddrs[addr] {
+			fmt.Fprintf(&script, "/ip address remove [find where interface=%s and address=%s]\n", quote(ifName), quote(addr))
+		}
+	}
 
 	// 2. Upsert one peer per enabled client, keeping the "AllowedIPs on
 	//    the server side = this client's own address space" convention
@@ -308,45 +349,72 @@ func ApplySync(settings model.MikrotikSettings, server model.Server, clients []m
 		desiredTags[tag] = true
 
 		allowed := append(append([]string{}, c.AllocatedIPs...), c.ExtraAllowedIPs...)
-		setArgs := fmt.Sprintf("interface=%s public-key=%s allowed-address=%s comment=%s",
+		args := fmt.Sprintf("interface=%s public-key=%s allowed-address=%s comment=%s",
 			quote(ifName), quote(c.PublicKey), quote(strings.Join(allowed, ",")), quote(tag))
 		if c.PresharedKey != "" {
-			setArgs += " preshared-key=" + quote(c.PresharedKey)
+			args += " preshared-key=" + quote(c.PresharedKey)
 		}
 		if globalSettings.PersistentKeepalive > 0 {
-			setArgs += fmt.Sprintf(" persistent-keepalive=%ds", globalSettings.PersistentKeepalive)
+			args += fmt.Sprintf(" persistent-keepalive=%ds", globalSettings.PersistentKeepalive)
 		}
 
-		fmt.Fprintf(&script, ":local pId [/interface wireguard peers find where comment=%s]\n", quote(tag))
-		fmt.Fprintf(&script, ":if ([:len $pId] = 0) do={ /interface wireguard peers add %s } else={ /interface wireguard peers set $pId %s }\n", setArgs, setArgs)
+		if existingPeers[tag] {
+			fmt.Fprintf(&script, "/interface wireguard peers set [find where comment=%s] %s\n", quote(tag), args)
+		} else {
+			fmt.Fprintf(&script, "/interface wireguard peers add %s\n", args)
+		}
 	}
 
-	if _, err := run(client, script.String()); err != nil {
-		return err
+	// 3. Remove peers this app previously created for clients that are
+	//    now disabled/deleted. Only touches comments tagged "mtwg:".
+	for tag := range existingPeers {
+		if strings.HasPrefix(tag, "mtwg:") && !desiredTags[tag] {
+			fmt.Fprintf(&script, "/interface wireguard peers remove [find where comment=%s]\n", quote(tag))
+		}
 	}
 
-	// 3. Remove peers this app previously created for clients that are now
-	//    disabled/deleted. The diff happens here in Go (not in a RouterOS
-	//    script) to keep the logic simple and easy to get right: read back
-	//    every "mtwg:"-tagged comment currently on the interface, then
-	//    issue one targeted remove per tag that's no longer desired.
-	out, err := run(client, fmt.Sprintf("/interface wireguard peers print terse where interface=%s", quote(ifName)))
+	_, err = run(client, script.String())
+	return err
+}
+
+func interfaceExists(client *ssh.Client, ifName string) (bool, error) {
+	out, err := run(client, fmt.Sprintf("/interface wireguard print terse where name=%s", quote(ifName)))
 	if err != nil {
-		return err
+		return false, err
 	}
-	var removeScript strings.Builder
+	return strings.TrimSpace(out) != "", nil
+}
+
+func existingAddresses(client *ssh.Client, ifName string) (map[string]bool, error) {
+	out, err := run(client, fmt.Sprintf("/ip address print terse where interface=%s", quote(ifName)))
+	if err != nil {
+		return nil, err
+	}
+	addrs := make(map[string]bool)
 	for _, line := range strings.Split(out, "\n") {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
-		comment := parseTerseFields(line)["comment"]
-		if strings.HasPrefix(comment, "mtwg:") && !desiredTags[comment] {
-			fmt.Fprintf(&removeScript, "/interface wireguard peers remove [find where comment=%s]\n", quote(comment))
+		if addr := parseTerseFields(line)["address"]; addr != "" {
+			addrs[addr] = true
 		}
 	}
-	if removeScript.Len() == 0 {
-		return nil
+	return addrs, nil
+}
+
+func existingPeerComments(client *ssh.Client, ifName string) (map[string]bool, error) {
+	out, err := run(client, fmt.Sprintf("/interface wireguard peers print terse where interface=%s", quote(ifName)))
+	if err != nil {
+		return nil, err
 	}
-	_, err = run(client, removeScript.String())
-	return err
+	comments := make(map[string]bool)
+	for _, line := range strings.Split(out, "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		if comment := parseTerseFields(line)["comment"]; comment != "" {
+			comments[comment] = true
+		}
+	}
+	return comments, nil
 }

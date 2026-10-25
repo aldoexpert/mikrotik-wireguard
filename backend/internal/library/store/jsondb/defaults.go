@@ -11,9 +11,9 @@ import (
 const (
 	defaultUsername            = "admin"
 	defaultPassword            = "admin"
-	defaultServerAddress       = "10.252.1.0/24"
+	defaultServerAddress       = "10.252.1.1/24"
 	defaultServerPort          = 51820
-	defaultDNS                 = "1.1.1.1"
+	defaultDNS                 = "1.1.1.1,8.8.8.8"
 	defaultMTU                 = 1450
 	defaultPersistentKeepalive = 15
 	defaultFirewallMark        = "0xca6c" // i.e. 51820

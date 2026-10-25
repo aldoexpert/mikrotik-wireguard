@@ -232,6 +232,7 @@ Every variable uses the `MTWG_` prefix. The full list is in
 | `MTWG_SERVER_LISTEN_PORT` | `51820` | The WireGuard UDP port. |
 | `MTWG_ENDPOINT_ADDRESS` | *(auto-detected public IP)* | The address clients use to connect. |
 | `MTWG_SUBNET_RANGES` | *(empty)* | Extra IP pools, format `name1:cidr1,cidr2;name2:cidr3`. |
+| `MTWG_CONFIG_FILE_PATH` | `/app/data/wg0.conf` (Docker) | Where the locally-written `wg0.conf` is saved. Defaults into the persisted data volume, since the image has no `/etc/wireguard` (no `wireguard-tools`, no local wg0 device -- this project targets Mikrotik RouterOS 7 over SSH). |
 | `MTWG_SMTP_*`, `MTWG_SENDGRID_API_KEY` | *(empty)* | Send client configs by email. |
 | `MTWG_TELEGRAM_TOKEN` | *(empty)* | Send client configs via a Telegram bot. |
 | `APP_PORT` | `8200` | Host port published by `docker-compose.yaml` (container always listens on `8200` internally). |

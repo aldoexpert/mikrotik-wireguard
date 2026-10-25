@@ -17,6 +17,11 @@ services:
     environment:
       MTWG_PORT: "8200"
       MTWG_DB_PATH: /app/data
+      # /etc/wireguard doesn't exist in this image (no wireguard-tools, no
+      # local wg0 device -- see the Mikrotik integration section of the
+      # README). Point the locally-written wg0.conf at the persisted data
+      # volume instead, which always exists and is writable.
+      MTWG_CONFIG_FILE_PATH: ${MTWG_CONFIG_FILE_PATH:-/app/data/wg0.conf}
       MTWG_DISABLE_LOGIN: ${MTWG_DISABLE_LOGIN:-false}
       MTWG_JWT_SECRET: ${MTWG_JWT_SECRET:?set a long random MTWG_JWT_SECRET in .env}
       MTWG_CORS_ALLOWED_ORIGINS: ${MTWG_CORS_ALLOWED_ORIGINS:-*}

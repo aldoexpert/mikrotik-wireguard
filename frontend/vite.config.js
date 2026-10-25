@@ -27,11 +27,11 @@ export default async () => {
       port: 5173,
       historyApiFallback: true,
       proxy: {
-        '/auth':      { target: 'http://localhost:8080', changeOrigin: true },
-        '/wireguard': { target: 'http://localhost:8080', changeOrigin: true },
-        '/network':   { target: 'http://localhost:8080', changeOrigin: true },
-        '/users':     { target: 'http://localhost:8080', changeOrigin: true },
-        '/system':    { target: 'http://localhost:8080', changeOrigin: true },
+        '/auth':      { target: 'http://localhost:8200', changeOrigin: true },
+        '/wireguard': { target: 'http://localhost:8200', changeOrigin: true },
+        '/network':   { target: 'http://localhost:8200', changeOrigin: true },
+        '/users':     { target: 'http://localhost:8200', changeOrigin: true },
+        '/system':    { target: 'http://localhost:8200', changeOrigin: true },
       },
     },
   };

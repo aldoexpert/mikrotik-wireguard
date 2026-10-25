@@ -166,6 +166,26 @@ func ValidateAllowedIPs(cidrs []string) bool      { return ValidateCIDRList(cidr
 func ValidateExtraAllowedIPs(cidrs []string) bool { return ValidateCIDRList(cidrs, true) }
 func ValidateServerAddresses(cidrs []string) bool { return ValidateCIDRList(cidrs, false) }
 
+// ValidateClientName checks that the name is safe for use as a RouterOS
+// WireGuard peer name: non-empty, max 63 chars, letters/digits/spaces/
+// hyphens/underscores/periods only.
+func ValidateClientName(name string) error {
+	if name == "" {
+		return fmt.Errorf("client name cannot be empty")
+	}
+	if len(name) > 63 {
+		return fmt.Errorf("client name must be 63 characters or fewer")
+	}
+	for _, ch := range name {
+		if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
+			(ch >= '0' && ch <= '9') || ch == '-' || ch == '_' || ch == ' ' || ch == '.' {
+			continue
+		}
+		return fmt.Errorf("client name contains invalid character '%c': only letters, digits, spaces, hyphens, underscores and periods are allowed", ch)
+	}
+	return nil
+}
+
 func ValidateIPAddress(ip string) bool { return net.ParseIP(ip) != nil }
 
 func ValidateIPAddressList(ips []string) bool {

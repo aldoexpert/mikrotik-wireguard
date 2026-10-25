@@ -349,8 +349,8 @@ func ApplySync(settings model.MikrotikSettings, server model.Server, clients []m
 		desiredTags[tag] = true
 
 		allowed := append(append([]string{}, c.AllocatedIPs...), c.ExtraAllowedIPs...)
-		args := fmt.Sprintf("interface=%s public-key=%s allowed-address=%s comment=%s",
-			quote(ifName), quote(c.PublicKey), quote(strings.Join(allowed, ",")), quote(tag))
+		args := fmt.Sprintf("name=%s interface=%s public-key=%s allowed-address=%s comment=%s",
+			quote(c.Name), quote(ifName), quote(c.PublicKey), quote(strings.Join(allowed, ",")), quote(tag))
 		if c.PresharedKey != "" {
 			args += " preshared-key=" + quote(c.PresharedKey)
 		}

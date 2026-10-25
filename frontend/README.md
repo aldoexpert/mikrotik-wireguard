@@ -11,7 +11,7 @@ npm run dev      # http://localhost:5173
 ```
 
 Set `VITE_API_BASE_URL` (see `.env.example`) so the frontend knows the
-backend's address. Default: `http://localhost:8080`.
+backend's address. Default: `http://localhost:8200`.
 
 ## Production Build
 

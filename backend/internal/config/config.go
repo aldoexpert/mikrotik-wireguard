@@ -58,7 +58,7 @@ func Load() *App {
 	cfg := &App{}
 
 	flag.StringVar(&cfg.Name, "app-name", lookupEnvOrString("MTWG_APP_NAME", "Mikrotik WireGuard Manager"), "Application name")
-	flag.IntVar(&cfg.Port, "port", lookupEnvOrInt("MTWG_PORT", 8080), "HTTP port the backend listens on")
+	flag.IntVar(&cfg.Port, "port", lookupEnvOrInt("MTWG_PORT", 8200), "HTTP port the backend listens on")
 	flag.BoolVar(&cfg.Debug, "debug", lookupEnvOrBool("MTWG_DEBUG", false), "Enable verbose/debug logging")
 	flag.StringVar(&cfg.BasePath, "base-path", lookupEnvOrString("MTWG_BASE_PATH", ""), "Mount the API under a sub-path, e.g. /api")
 

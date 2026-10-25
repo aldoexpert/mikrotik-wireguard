@@ -31,7 +31,7 @@
                     <div class="item-title">Enabled</div>
                     <div class="item-after">
                       <label class="toggle">
-                        <input type="checkbox" ${form.enabled ? 'checked' : ''} @change="${(e) => { form.enabled = e.target.checked; }}" />
+                        <input type="checkbox" checked=${form.enabled} @change="${(e) => { form.enabled = e.target.checked; }}" />
                         <span class="toggle-icon"></span>
                       </label>
                     </div>

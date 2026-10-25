@@ -90,6 +90,11 @@ func (c *ClientsController) Create(w http.ResponseWriter, r *http.Request, param
 		return
 	}
 
+	if err := library.ValidateClientName(client.Name); err != nil {
+		core.BadRequest(w, err.Error())
+		return
+	}
+
 	if client.TgUserid != "" {
 		idNum, err := strconv.ParseInt(client.TgUserid, 10, 64)
 		if err != nil || idNum == 0 {
@@ -204,6 +209,11 @@ func (c *ClientsController) Update(w http.ResponseWriter, r *http.Request, param
 	existing, err := c.db.GetClientByID(updated.ID, model.QRCodeSettings{Enabled: false})
 	if err != nil {
 		core.NotFound(w, "Client not found")
+		return
+	}
+
+	if err := library.ValidateClientName(updated.Name); err != nil {
+		core.BadRequest(w, err.Error())
 		return
 	}
 

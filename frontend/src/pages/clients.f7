@@ -56,7 +56,7 @@
                     <div class="item-title">${cd.client.name}</div>
                     <div class="item-after">
                       <label class="toggle" @click="${(e) => e.stopPropagation()}">
-                        <input type="checkbox" ${cd.client.enabled ? 'checked' : ''} @change="${() => toggleStatus(cd.client)}" />
+                        <input type="checkbox" checked=${cd.client.enabled} @change="${() => toggleStatus(cd.client)}" />
                         <span class="toggle-icon"></span>
                       </label>
                     </div>

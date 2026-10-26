@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/skip2/go-qrcode"
@@ -111,20 +112,39 @@ func initServerConfigIfMissing(db store.IStore, wgConfTemplate string) {
 		log.Fatalf("[FATAL] Could not get the user configuration: %v", err)
 	}
 
-	for _, iface := range ifaces {
-		if _, err := os.Stat(iface.ConfigFilePath); err == nil {
+	defaultCfgPath := os.Getenv("MTWG_CONFIG_FILE_PATH")
+	if defaultCfgPath == "" {
+		defaultCfgPath = "/etc/wireguard/wg0.conf"
+	}
+
+	for i := range ifaces {
+		// If the stored config_file_path directory is not accessible (e.g.
+		// data was migrated from a different machine), fall back to the env
+		// default and persist the corrected path so future starts are clean.
+		if dir := filepath.Dir(ifaces[i].ConfigFilePath); dir != "" {
+			if _, statErr := os.Stat(dir); statErr != nil {
+				log.Printf("[WARN] Config path directory %q not accessible for interface %s, falling back to %q",
+					dir, ifaces[i].WgName, filepath.Dir(defaultCfgPath))
+				ifaces[i].ConfigFilePath = defaultCfgPath
+				if saveErr := db.SaveInterface(ifaces[i]); saveErr != nil {
+					log.Printf("[WARN] Could not persist config_file_path fix for %s: %v", ifaces[i].WgName, saveErr)
+				}
+			}
+		}
+
+		if _, err := os.Stat(ifaces[i].ConfigFilePath); err == nil {
 			continue // already exists, don't overwrite it implicitly
 		}
 
 		var scoped []model.ClientData
 		for _, cd := range clients {
-			if cd.Client != nil && cd.Client.InterfaceID == iface.ID {
+			if cd.Client != nil && cd.Client.InterfaceID == ifaces[i].ID {
 				scoped = append(scoped, cd)
 			}
 		}
 
-		if err := library.WriteWireGuardServerConfig(wgConfTemplate, iface, scoped, dbUsers); err != nil {
-			log.Fatalf("[FATAL] Could not create the %s configuration: %v", iface.WgName, err)
+		if err := library.WriteWireGuardServerConfig(wgConfTemplate, ifaces[i], scoped, dbUsers); err != nil {
+			log.Fatalf("[FATAL] Could not create the %s configuration: %v", ifaces[i].WgName, err)
 		}
 	}
 }

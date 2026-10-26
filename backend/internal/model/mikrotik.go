@@ -9,13 +9,15 @@ import "time"
 // Auth is always by SSH private key (never password) -- PrivateKeyPEM is
 // an OpenSSH/PEM-formatted private key, stored like the other secrets in
 // this app (0600 file permissions, see library.ManagePerms).
+// Interface is no longer part of this struct: the RouterOS interface name
+// to sync now comes from each WgInterface.WgName, since one Mikrotik
+// device can host several WireGuard interfaces.
 type MikrotikSettings struct {
 	Enabled       bool      `json:"enabled"`
 	Host          string    `json:"host"`
 	Port          int       `json:"port,string"`
 	Username      string    `json:"username"`
 	PrivateKeyPEM string    `json:"private_key_pem"`
-	Interface     string    `json:"interface"`
 	UpdatedAt     time.Time `json:"updated_at"`
 }
 
@@ -27,6 +29,5 @@ type MikrotikSettingsView struct {
 	Port      int       `json:"port"`
 	Username  string    `json:"username"`
 	HasKey    bool      `json:"has_key"`
-	Interface string    `json:"interface"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

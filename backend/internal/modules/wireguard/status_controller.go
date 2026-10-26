@@ -128,40 +128,45 @@ func (c *StatusController) getFromLocal(byPublicKey map[string]*clientLookup, is
 }
 
 func (c *StatusController) getFromMikrotik(settings model.MikrotikSettings, byPublicKey map[string]*clientLookup, isAdmin bool) ([]deviceStatus, error) {
-	peers, err := mikrotik.GetPeerStatuses(settings)
+	ifaces, err := c.db.GetInterfaces()
 	if err != nil {
 		return nil, err
 	}
 
-	ifName := settings.Interface
-	if ifName == "" {
-		ifName = "wireguard1"
-	}
-	dev := deviceStatus{Name: ifName}
 	now := time.Now()
-	for _, p := range peers {
-		ps := peerStatus{
-			PublicKey:     p.PublicKey,
-			ReceivedBytes: p.RxBytes,
-			TransmitBytes: p.TxBytes,
-			AllocatedIP:   strings.ReplaceAll(p.AllowedAddress, ",", ", "),
+	result := make([]deviceStatus, 0, len(ifaces))
+	for _, iface := range ifaces {
+		peers, err := mikrotik.GetPeerStatuses(settings, iface.WgName)
+		if err != nil {
+			return nil, err
 		}
-		if d, ok := mikrotik.ParseDuration(p.LastHandshake); ok {
-			ps.LastHandshakeTime = now.Add(-d)
-			ps.LastHandshakeSecs = d.Seconds()
-			ps.Connected = d.Minutes() < 3
+
+		dev := deviceStatus{Name: iface.WgName}
+		for _, p := range peers {
+			ps := peerStatus{
+				PublicKey:     p.PublicKey,
+				ReceivedBytes: p.RxBytes,
+				TransmitBytes: p.TxBytes,
+				AllocatedIP:   strings.ReplaceAll(p.AllowedAddress, ",", ", "),
+			}
+			if d, ok := mikrotik.ParseDuration(p.LastHandshake); ok {
+				ps.LastHandshakeTime = now.Add(-d)
+				ps.LastHandshakeSecs = d.Seconds()
+				ps.Connected = d.Minutes() < 3
+			}
+			if isAdmin {
+				ps.Endpoint = p.EndpointAddress
+			}
+			if cl, ok := byPublicKey[ps.PublicKey]; ok {
+				ps.Name = cl.Name
+				ps.Email = cl.Email
+			}
+			dev.Peers = append(dev.Peers, ps)
 		}
-		if isAdmin {
-			ps.Endpoint = p.EndpointAddress
-		}
-		if cl, ok := byPublicKey[ps.PublicKey]; ok {
-			ps.Name = cl.Name
-			ps.Email = cl.Email
-		}
-		dev.Peers = append(dev.Peers, ps)
+		sortPeers(dev.Peers)
+		result = append(result, dev)
 	}
-	sortPeers(dev.Peers)
-	return []deviceStatus{dev}, nil
+	return result, nil
 }
 
 func sortPeers(peers []peerStatus) {

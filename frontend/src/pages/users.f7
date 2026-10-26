@@ -2,65 +2,53 @@
   <div class="page" data-name="users">
     <div class="navbar">
       <div class="navbar-bg"></div>
-      <div class="navbar-inner">
+      <div class="navbar-inner sliding">
         <div class="left"><a href="#" class="link icon-only panel-open" data-panel=".panel-left"><i class="icon f7-icons if-not-md">menu</i><i class="icon material-icons md-only">menu</i></a></div>
         <div class="title">Users</div>
+        <div class="right">
+          <a href="/users/new/" class="link icon-only">
+            <i class="icon f7-icons if-not-md">plus</i>
+            <i class="icon material-icons md-only">add</i>
+          </a>
+        </div>
       </div>
     </div>
     <div class="page-content">
-      ${loading ? $h`<div class="block text-align-center"><div class="preloader"></div></div>` : $h`
-        <div class="list media-list no-hairlines-md">
-          <ul>
-            ${users.map((u) => $h`
-              <li class="swipeout">
-                <div class="item-content swipeout-content">
-                  <div class="item-inner">
-                    <div class="item-title-row">
-                      <div class="item-title">${u.username} ${u.admin ? $h`<span class="chip chip-outline"><span class="chip-label">admin</span></span>` : ''}</div>
+      ${loading ? $h`<div class="block text-align-center"><div class="preloader"></div></div>` : ''}
+
+      ${!loading && users.length === 0 ? $h`
+        <div class="block block-strong text-align-center">
+          <p>No users yet.</p>
+          <a href="/users/new/" class="button button-fill">Add User</a>
+        </div>
+      ` : ''}
+
+      <div class="list media-list no-hairlines-md">
+        <ul>
+          ${users.map((u) => $h`
+            <li class="swipeout">
+              <div class="item-content swipeout-content">
+                <div class="item-inner">
+                  <div class="item-title-row">
+                    <div class="item-title">${u.username}</div>
+                    <div class="item-after">
+                      <label class="toggle" @click="${(e) => e.stopPropagation()}">
+                        <input type="checkbox" checked=${u.admin} @change="${(e) => toggleAdmin(u, e.target.checked)}" />
+                        <span class="toggle-icon"></span>
+                      </label>
                     </div>
                   </div>
+                  <div class="item-subtitle">${u.admin ? 'Admin' : 'Manager'}</div>
                 </div>
-                <div class="swipeout-actions-right">
-                  <a href="#" class="swipeout-delete color-red" @click="${(e) => { e.preventDefault(); removeUser(u); }}">Delete</a>
-                </div>
-              </li>
-            `)}
-          </ul>
-        </div>
-
-        <div class="block-title">Add User</div>
-        <form @submit="${createUser}">
-          <div class="list no-hairlines-md">
-            <ul>
-              <li>
-                <div class="item-content item-input">
-                  <div class="item-inner">
-                    <div class="item-title item-label">Username</div>
-                    <div class="item-input-wrap"><input type="text" required value="${newUser.username}" @input="${(e) => { newUser.username = e.target.value; }}" /></div>
-                  </div>
-                </div>
-              </li>
-              <li>
-                <div class="item-content item-input">
-                  <div class="item-inner">
-                    <div class="item-title item-label">Password</div>
-                    <div class="item-input-wrap"><input type="password" required value="${newUser.password}" @input="${(e) => { newUser.password = e.target.value; }}" /></div>
-                  </div>
-                </div>
-              </li>
-              <li>
-                <div class="item-content">
-                  <div class="item-inner">
-                    <div class="item-title">Admin</div>
-                    <div class="item-after"><label class="toggle"><input type="checkbox" ${newUser.admin ? 'checked' : ''} @change="${(e) => { newUser.admin = e.target.checked; }}" /><span class="toggle-icon"></span></label></div>
-                  </div>
-                </div>
-              </li>
-            </ul>
-          </div>
-          <div class="block"><button type="submit" class="button button-fill button-large">Add User</button></div>
-        </form>
-      `}
+              </div>
+              <div class="swipeout-actions-right">
+                <a href="/users/${u.username}/edit/" class="swipeout-close">Edit</a>
+                <a href="#" class="swipeout-delete color-red" @click="${(e) => { e.preventDefault(); removeUser(u); }}">Delete</a>
+              </div>
+            </li>
+          `)}
+        </ul>
+      </div>
     </div>
   </div>
 </template>
@@ -68,10 +56,9 @@
 import api, { ApiError } from '../js/api.js';
 import { notifyError, errorMessage } from '../js/notify.js';
 
-export default (props, { $f7, $update }) => {
+export default (props, { $f7, $update, $on }) => {
   let users = [];
   let loading = true;
-  let newUser = { username: '', password: '', admin: false };
 
   const load = async () => {
     loading = true;
@@ -87,14 +74,22 @@ export default (props, { $f7, $update }) => {
     }
   };
 
-  const createUser = async (e) => {
-    e.preventDefault();
+  $on('pageAfterIn', load);
+
+  const toggleAdmin = async (u, checked) => {
     try {
-      await api.post('/users/account/create', newUser);
-      newUser = { username: '', password: '', admin: false };
-      await load();
+      await api.post('/users/account/update', {
+        previous_username: u.username,
+        username: u.username,
+        password: '',
+        admin: checked,
+      });
+      u.admin = checked;
+      $update();
     } catch (err) {
-      notifyError($f7, errorMessage(err, ApiError, 'Failed to create the user'));
+      u.admin = !checked;
+      $update();
+      notifyError($f7, errorMessage(err, ApiError, 'Failed to update admin status'));
     }
   };
 

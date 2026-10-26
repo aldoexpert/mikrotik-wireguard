@@ -26,7 +26,6 @@ func toView(s model.MikrotikSettings) model.MikrotikSettingsView {
 		Port:      s.Port,
 		Username:  s.Username,
 		HasKey:    s.PrivateKeyPEM != "",
-		Interface: s.Interface,
 		UpdatedAt: s.UpdatedAt,
 	}
 }
@@ -48,7 +47,6 @@ type mikrotikSettingsRequest struct {
 	Port          int    `json:"port"`
 	Username      string `json:"username"`
 	PrivateKeyPEM string `json:"private_key_pem"` // optional; blank keeps the stored key
-	Interface     string `json:"interface"`
 }
 
 // settingsFromRequest fully replaces the stored settings with req -- used
@@ -64,7 +62,6 @@ func (c *MikrotikSettingsController) settingsFromRequest(req mikrotikSettingsReq
 	existing.Host = req.Host
 	existing.Port = req.Port
 	existing.Username = req.Username
-	existing.Interface = req.Interface
 	if req.PrivateKeyPEM != "" {
 		existing.PrivateKeyPEM = req.PrivateKeyPEM
 	}
@@ -88,9 +85,6 @@ func (c *MikrotikSettingsController) settingsOverlay(req mikrotikSettingsRequest
 	}
 	if req.Username != "" {
 		existing.Username = req.Username
-	}
-	if req.Interface != "" {
-		existing.Interface = req.Interface
 	}
 	if req.PrivateKeyPEM != "" {
 		existing.PrivateKeyPEM = req.PrivateKeyPEM

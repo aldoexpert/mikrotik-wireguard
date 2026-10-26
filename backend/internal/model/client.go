@@ -2,9 +2,19 @@ package model
 
 import "time"
 
-// Client is a WireGuard peer configuration.
+// Client is a WireGuard peer configuration, scoped to one WgInterface.
+//
+// Endpoint switches this peer between the two roles a WireGuard peer can
+// take (see WgInterface's doc comment): left blank, the interface just
+// waits for this peer to connect in (the common "allowed client" case,
+// e.g. a phone running the WireGuard app). Set to "host:port", the
+// interface instead dials out to that address -- this is the "Connect To"
+// / site-to-site case, and PublicKey must then be the *remote* WireGuard
+// server's own public key (not one generated for this record), since we
+// don't control its private key.
 type Client struct {
 	ID              string    `json:"id"`
+	InterfaceID     string    `json:"interface_id"`
 	PrivateKey      string    `json:"private_key"`
 	PublicKey       string    `json:"public_key"`
 	PresharedKey    string    `json:"preshared_key"`
@@ -21,6 +31,13 @@ type Client struct {
 	Enabled         bool      `json:"enabled"`
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
+}
+
+// IsUpstream reports whether this client/peer record represents an
+// outbound "Connect To" connection (this interface dials out to it) as
+// opposed to an inbound allowed client (which waits to be connected to).
+func (c Client) IsUpstream() bool {
+	return c.Endpoint != ""
 }
 
 // ClientData bundles a Client with its rendered QR code image (data URI).

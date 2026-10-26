@@ -94,21 +94,13 @@ func main() {
 	}
 }
 
-// initServerConfigIfMissing writes wg0.conf on first run, so a fresh
-// install already has a usable local config file before anyone logs in.
+// initServerConfigIfMissing writes each interface's wg0.conf on first run,
+// so a fresh install already has usable local config files before anyone
+// logs in.
 func initServerConfigIfMissing(db store.IStore, wgConfTemplate string) {
-	settings, err := db.GetGlobalSettings()
+	ifaces, err := db.GetInterfaces()
 	if err != nil {
-		log.Fatalf("[FATAL] Could not get the global settings: %v", err)
-	}
-
-	if _, err := os.Stat(settings.ConfigFilePath); err == nil {
-		return // already exists, don't overwrite it implicitly
-	}
-
-	server, err := db.GetServer()
-	if err != nil {
-		log.Fatalf("[FATAL] Could not get the server configuration: %v", err)
+		log.Fatalf("[FATAL] Could not get the interface list: %v", err)
 	}
 	clients, err := db.GetClients(false)
 	if err != nil {
@@ -119,8 +111,21 @@ func initServerConfigIfMissing(db store.IStore, wgConfTemplate string) {
 		log.Fatalf("[FATAL] Could not get the user configuration: %v", err)
 	}
 
-	if err := library.WriteWireGuardServerConfig(wgConfTemplate, server, clients, dbUsers, settings); err != nil {
-		log.Fatalf("[FATAL] Could not create the server configuration: %v", err)
+	for _, iface := range ifaces {
+		if _, err := os.Stat(iface.ConfigFilePath); err == nil {
+			continue // already exists, don't overwrite it implicitly
+		}
+
+		var scoped []model.ClientData
+		for _, cd := range clients {
+			if cd.Client != nil && cd.Client.InterfaceID == iface.ID {
+				scoped = append(scoped, cd)
+			}
+		}
+
+		if err := library.WriteWireGuardServerConfig(wgConfTemplate, iface, scoped, dbUsers); err != nil {
+			log.Fatalf("[FATAL] Could not create the %s configuration: %v", iface.WgName, err)
+		}
 	}
 }
 
@@ -162,9 +167,8 @@ func sendRequestedConfigsToTelegram(db store.IStore, userid int64) []string {
 			continue
 		}
 
-		server, _ := db.GetServer()
-		globalSettings, _ := db.GetGlobalSettings()
-		conf := library.BuildClientConfig(*clientData.Client, server, globalSettings)
+		iface, _ := db.GetInterfaceByID(clientData.Client.InterfaceID)
+		conf := library.BuildClientConfig(*clientData.Client, iface)
 
 		var qrData []byte
 		if clientData.Client.PrivateKey != "" {

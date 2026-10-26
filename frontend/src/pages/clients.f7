@@ -31,10 +31,19 @@
     <div class="page-content">
       ${loading ? $h`<div class="block text-align-center"><div class="preloader"></div></div>` : ''}
 
-      ${!loading && !hadError && clients.length === 0 ? $h`
+      ${!loading && interfaces.length > 1 ? $h`
+        <div class="block" style="margin-bottom:0;">
+          <select class="uk-select" style="width:100%;" value="${interfaceFilter}" @change="${(e) => { interfaceFilter = e.target.value; $update(); }}">
+            <option value="">All interfaces</option>
+            ${interfaces.map((iface) => $h`<option value="${iface.id}" selected=${interfaceFilter === iface.id}>${iface.name} (${iface.wg_name})</option>`)}
+          </select>
+        </div>
+      ` : ''}
+
+      ${!loading && !hadError && visibleClients().length === 0 ? $h`
         <div class="block block-strong text-align-center">
           <p>No WireGuard clients yet.</p>
-          <p class="mtwg-muted">Tap the + button in the top right to add your first client. Make sure the server's interface address is configured first (see the Server page) so an IP can be suggested.</p>
+          <p class="mtwg-muted">Tap the + button in the top right to add your first client. Make sure the interface's address is configured first (see Interfaces) so an IP can be suggested.</p>
           <a href="/clients/new/" class="button button-fill">Add Client</a>
         </div>
       ` : ''}
@@ -45,7 +54,7 @@
 
       <div class="list media-list no-hairlines-md searchbar-found mtwg-clients-list">
         <ul>
-          ${clients.map((cd) => $h`
+          ${visibleClients().map((cd) => $h`
             <li class="swipeout">
               <div class="item-content swipeout-content">
                 <div class="item-media" @click="${() => openActions(cd.client)}">
@@ -53,7 +62,7 @@
                 </div>
                 <div class="item-inner" @click="${() => openActions(cd.client)}">
                   <div class="item-title-row">
-                    <div class="item-title">${cd.client.name}</div>
+                    <div class="item-title">${cd.client.name} ${cd.client.endpoint ? $h`<span class="mtwg-muted">(Connect To)</span>` : ''}</div>
                     <div class="item-after">
                       <label class="toggle" @click="${(e) => e.stopPropagation()}">
                         <input type="checkbox" checked=${cd.client.enabled} @change="${() => toggleStatus(cd.client)}" />
@@ -61,7 +70,7 @@
                       </label>
                     </div>
                   </div>
-                  <div class="item-subtitle">${(cd.client.allocated_ips || []).join(', ')}</div>
+                  <div class="item-subtitle">${interfaceName(cd.client.interface_id)} · ${(cd.client.allocated_ips || []).join(', ') || cd.client.endpoint || ''}</div>
                   <div class="item-text">${cd.client.email || ''} ${cd.client.telegram_userid ? ('· TG ' + cd.client.telegram_userid) : ''}</div>
                 </div>
               </div>
@@ -122,6 +131,8 @@ import { notifySuccess, notifyError, errorMessage } from '../js/notify.js';
 
 export default (props, { $f7, $update, $on }) => {
   let clients = [];
+  let interfaces = [];
+  let interfaceFilter = '';
   let loading = true;
   let hadError = false;
   let activeClient = null;
@@ -133,8 +144,12 @@ export default (props, { $f7, $update, $on }) => {
     hadError = false;
     $update();
     try {
-      const res = await api.get('/wireguard/clients/list');
-      clients = res.datas || [];
+      const [clientsRes, ifacesRes] = await Promise.all([
+        api.get('/wireguard/clients/list'),
+        api.get('/wireguard/interfaces/list'),
+      ]);
+      clients = clientsRes.datas || [];
+      interfaces = ifacesRes.datas || [];
     } catch (err) {
       hadError = true;
       notifyError($f7, errorMessage(err, ApiError, 'Failed to load the client list'));
@@ -143,6 +158,13 @@ export default (props, { $f7, $update, $on }) => {
       $update();
     }
   };
+
+  const interfaceName = (id) => {
+    const iface = interfaces.find((i) => i.id === id);
+    return iface ? `${iface.name} (${iface.wg_name})` : '';
+  };
+
+  const visibleClients = () => (interfaceFilter ? clients.filter((cd) => cd.client.interface_id === interfaceFilter) : clients);
 
   // Reload the list each time this page becomes visible (including returning
   // from the Add/Edit form), so newly created or updated clients appear.

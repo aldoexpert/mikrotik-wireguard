@@ -49,17 +49,25 @@ func (c *ClientsController) Defaults(w http.ResponseWriter, r *http.Request, par
 	core.Success(w, "", library.ClientDefaultsFromEnv())
 }
 
-// List returns every client, with QR code and resolved subnet ranges.
+// List returns every client, with QR code and resolved subnet ranges,
+// optionally filtered to one interface via the "interface_id" query param.
 func (c *ClientsController) List(w http.ResponseWriter, r *http.Request, params []string) {
 	clients, err := c.db.GetClients(true)
 	if err != nil {
 		core.InternalError(w, "Could not get the client list", err)
 		return
 	}
+
+	interfaceID := r.URL.Query().Get("interface_id")
+
+	filtered := make([]model.ClientData, 0, len(clients))
 	for i := range clients {
-		clients[i] = library.FillClientSubnetRange(clients[i])
+		if interfaceID != "" && (clients[i].Client == nil || clients[i].Client.InterfaceID != interfaceID) {
+			continue
+		}
+		filtered = append(filtered, library.FillClientSubnetRange(clients[i]))
 	}
-	core.SuccessList(w, "", clients)
+	core.SuccessList(w, "", filtered)
 }
 
 // Get returns a single client by id.
@@ -103,20 +111,26 @@ func (c *ClientsController) Create(w http.ResponseWriter, r *http.Request, param
 		}
 	}
 
-	server, err := c.db.GetServer()
+	if client.InterfaceID == "" {
+		core.BadRequest(w, "An interface must be selected")
+		return
+	}
+	iface, err := c.db.GetInterfaceByID(client.InterfaceID)
 	if err != nil {
-		core.InternalError(w, "Could not get the server configuration", err)
+		core.BadRequest(w, "Interface not found")
 		return
 	}
 
-	allocatedIPs, err := library.GetAllocatedIPs(c.db, "")
-	if err != nil {
-		core.InternalError(w, "Could not get the allocated IP list", err)
-		return
-	}
-	if ok, verr := library.ValidateIPAllocation(server.Interface.Addresses, allocatedIPs, client.AllocatedIPs); !ok {
-		core.BadRequest(w, verr.Error())
-		return
+	if !client.IsUpstream() {
+		allocatedIPs, err := library.GetAllocatedIPs(c.db, client.InterfaceID, "")
+		if err != nil {
+			core.InternalError(w, "Could not get the allocated IP list", err)
+			return
+		}
+		if ok, verr := library.ValidateIPAllocation(iface.Config.Addresses, allocatedIPs, client.AllocatedIPs); !ok {
+			core.BadRequest(w, verr.Error())
+			return
+		}
 	}
 
 	if !library.ValidateAllowedIPs(client.AllowedIPs) {
@@ -130,7 +144,20 @@ func (c *ClientsController) Create(w http.ResponseWriter, r *http.Request, param
 
 	client.ID = xid.New().String()
 
-	if client.PublicKey == "" {
+	if client.IsUpstream() {
+		// Connecting out to a remote WireGuard server: PublicKey must be
+		// *their* key, which we don't control the private half of, so it
+		// can never be auto-generated here.
+		if client.PublicKey == "" {
+			core.BadRequest(w, "The remote server's public key is required for a \"Connect To\" peer")
+			return
+		}
+		if _, err := wgtypes.ParseKey(client.PublicKey); err != nil {
+			core.InternalError(w, "Could not verify the WireGuard public key", err)
+			return
+		}
+		client.PrivateKey = ""
+	} else if client.PublicKey == "" {
 		key, err := wgtypes.GeneratePrivateKey()
 		if err != nil {
 			core.InternalError(w, "Could not generate a WireGuard key pair", err)
@@ -225,22 +252,28 @@ func (c *ClientsController) Update(w http.ResponseWriter, r *http.Request, param
 		}
 	}
 
-	server, err := c.db.GetServer()
+	if updated.InterfaceID == "" {
+		core.BadRequest(w, "An interface must be selected")
+		return
+	}
+	iface, err := c.db.GetInterfaceByID(updated.InterfaceID)
 	if err != nil {
-		core.BadRequest(w, fmt.Sprintf("Could not get the server configuration: %s", err))
+		core.BadRequest(w, "Interface not found")
 		return
 	}
 
 	client := *existing.Client
 
-	allocatedIPs, err := library.GetAllocatedIPs(c.db, client.ID)
-	if err != nil {
-		core.InternalError(w, "Could not get the allocated IP list", err)
-		return
-	}
-	if ok, verr := library.ValidateIPAllocation(server.Interface.Addresses, allocatedIPs, updated.AllocatedIPs); !ok {
-		core.BadRequest(w, verr.Error())
-		return
+	if !updated.IsUpstream() {
+		allocatedIPs, err := library.GetAllocatedIPs(c.db, updated.InterfaceID, client.ID)
+		if err != nil {
+			core.InternalError(w, "Could not get the allocated IP list", err)
+			return
+		}
+		if ok, verr := library.ValidateIPAllocation(iface.Config.Addresses, allocatedIPs, updated.AllocatedIPs); !ok {
+			core.BadRequest(w, verr.Error())
+			return
+		}
 	}
 
 	if !library.ValidateAllowedIPs(updated.AllowedIPs) {
@@ -252,7 +285,19 @@ func (c *ClientsController) Update(w http.ResponseWriter, r *http.Request, param
 		return
 	}
 
-	if client.PublicKey != updated.PublicKey && updated.PublicKey != "" {
+	if updated.IsUpstream() {
+		if updated.PublicKey == "" {
+			core.BadRequest(w, "The remote server's public key is required for a \"Connect To\" peer")
+			return
+		}
+		if client.PublicKey != updated.PublicKey {
+			if _, err := wgtypes.ParseKey(updated.PublicKey); err != nil {
+				core.InternalError(w, "Could not verify the WireGuard public key", err)
+				return
+			}
+		}
+		client.PrivateKey = ""
+	} else if client.PublicKey != updated.PublicKey && updated.PublicKey != "" {
 		if _, err := wgtypes.ParseKey(updated.PublicKey); err != nil {
 			core.InternalError(w, "Could not verify the WireGuard public key", err)
 			return
@@ -276,6 +321,7 @@ func (c *ClientsController) Update(w http.ResponseWriter, r *http.Request, param
 		}
 	}
 
+	client.InterfaceID = updated.InterfaceID
 	client.Name = updated.Name
 	client.Email = updated.Email
 	client.TgUserid = updated.TgUserid
@@ -371,18 +417,13 @@ func (c *ClientsController) Download(w http.ResponseWriter, r *http.Request, par
 		return
 	}
 
-	server, err := c.db.GetServer()
-	if err != nil {
-		core.InternalError(w, err.Error(), err)
-		return
-	}
-	globalSettings, err := c.db.GetGlobalSettings()
+	iface, err := c.db.GetInterfaceByID(clientData.Client.InterfaceID)
 	if err != nil {
 		core.InternalError(w, err.Error(), err)
 		return
 	}
 
-	conf := library.BuildClientConfig(*clientData.Client, server, globalSettings)
+	conf := library.BuildClientConfig(*clientData.Client, iface)
 
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s.conf", clientData.Client.Name))
 	w.Header().Set("Content-Type", "text/conf")
@@ -417,9 +458,8 @@ func (c *ClientsController) Email(w http.ResponseWriter, r *http.Request, params
 		return
 	}
 
-	server, _ := c.db.GetServer()
-	globalSettings, _ := c.db.GetGlobalSettings()
-	conf := library.BuildClientConfig(*clientData.Client, server, globalSettings)
+	iface, _ := c.db.GetInterfaceByID(clientData.Client.InterfaceID)
+	conf := library.BuildClientConfig(*clientData.Client, iface)
 
 	cfgAttachment := emailer.Attachment{Name: "wg0.conf", Data: []byte(conf)}
 	attachments := []emailer.Attachment{cfgAttachment}
@@ -459,9 +499,8 @@ func (c *ClientsController) Telegram(w http.ResponseWriter, r *http.Request, par
 		return
 	}
 
-	server, _ := c.db.GetServer()
-	globalSettings, _ := c.db.GetGlobalSettings()
-	conf := library.BuildClientConfig(*clientData.Client, server, globalSettings)
+	iface, _ := c.db.GetInterfaceByID(clientData.Client.InterfaceID)
+	conf := library.BuildClientConfig(*clientData.Client, iface)
 	confData := []byte(conf)
 
 	var qrData []byte
@@ -487,16 +526,22 @@ func (c *ClientsController) Telegram(w http.ResponseWriter, r *http.Request, par
 	core.Success(w, "Telegram message sent successfully", nil)
 }
 
-// SuggestIPs suggests the next free IP address for a new client, optionally
+// SuggestIPs suggests the next free IP address for a new client on the
+// interface given by the "interface_id" query param, optionally further
 // restricted to the named subnet range ("sr" query param).
 func (c *ClientsController) SuggestIPs(w http.ResponseWriter, r *http.Request, params []string) {
-	server, err := c.db.GetServer()
+	interfaceID := r.URL.Query().Get("interface_id")
+	if interfaceID == "" {
+		core.BadRequest(w, "interface_id is required")
+		return
+	}
+	iface, err := c.db.GetInterfaceByID(interfaceID)
 	if err != nil {
-		core.BadRequest(w, err.Error())
+		core.BadRequest(w, "Interface not found")
 		return
 	}
 
-	allocatedIPs, err := library.GetAllocatedIPs(c.db, "")
+	allocatedIPs, err := library.GetAllocatedIPs(c.db, interfaceID, "")
 	if err != nil {
 		core.InternalError(w, "Could not get the allocated IP list", err)
 		return
@@ -509,13 +554,13 @@ func (c *ClientsController) SuggestIPs(w http.ResponseWriter, r *http.Request, p
 			searchCIDRList = append(searchCIDRList, cidr.String())
 		}
 	} else {
-		searchCIDRList = append(searchCIDRList, server.Interface.Addresses...)
+		searchCIDRList = append(searchCIDRList, iface.Config.Addresses...)
 	}
 
 	found := false
 	ipSet := make(map[string]struct{})
 	for _, cidr := range searchCIDRList {
-		ip, err := library.GetAvailableIP(cidr, allocatedIPs, server.Interface.Addresses)
+		ip, err := library.GetAvailableIP(cidr, allocatedIPs, iface.Config.Addresses)
 		if err != nil {
 			continue
 		}

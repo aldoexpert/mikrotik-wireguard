@@ -3,10 +3,8 @@ package library
 import (
 	"embed"
 	"fmt"
-	"io"
 	"os"
 	"path"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"text/template"
@@ -35,20 +33,22 @@ func lookupEnvOrBool(key string, defaultVal bool) bool {
 var embeddedTemplates embed.FS
 
 // BuildClientConfig renders the wg-quick [Interface]/[Peer] config a client
-// downloads/emails/scans as a QR code to connect to the server.
-func BuildClientConfig(client model.Client, server model.Server, setting model.GlobalSetting) string {
+// downloads/emails/scans as a QR code to connect to the server. Only
+// meaningful for an "allowed client" (see Client.IsUpstream) -- an
+// upstream/"Connect To" record has no private key of its own to hand out.
+func BuildClientConfig(client model.Client, iface model.WgInterface) string {
 	clientAddress := fmt.Sprintf("Address = %s\n", strings.Join(client.AllocatedIPs, ","))
 	clientPrivateKey := fmt.Sprintf("PrivateKey = %s\n", client.PrivateKey)
 	clientDNS := ""
 	if client.UseServerDNS {
-		clientDNS = fmt.Sprintf("DNS = %s\n", strings.Join(setting.DNSServers, ","))
+		clientDNS = fmt.Sprintf("DNS = %s\n", strings.Join(iface.DNSServers, ","))
 	}
 	clientMTU := ""
-	if setting.MTU > 0 {
-		clientMTU = fmt.Sprintf("MTU = %d\n", setting.MTU)
+	if iface.MTU > 0 {
+		clientMTU = fmt.Sprintf("MTU = %d\n", iface.MTU)
 	}
 
-	peerPublicKey := fmt.Sprintf("PublicKey = %s\n", server.KeyPair.PublicKey)
+	peerPublicKey := fmt.Sprintf("PublicKey = %s\n", iface.KeyPair.PublicKey)
 	peerPresharedKey := ""
 	if client.PresharedKey != "" {
 		peerPresharedKey = fmt.Sprintf("PresharedKey = %s\n", client.PresharedKey)
@@ -56,8 +56,8 @@ func BuildClientConfig(client model.Client, server model.Server, setting model.G
 
 	peerAllowedIPs := fmt.Sprintf("AllowedIPs = %s\n", strings.Join(client.AllowedIPs, ","))
 
-	desiredHost := setting.EndpointAddress
-	desiredPort := server.Interface.ListenPort
+	desiredHost := iface.EndpointAddress
+	desiredPort := iface.Config.ListenPort
 	if strings.Contains(desiredHost, ":") {
 		split := strings.Split(desiredHost, ":")
 		desiredHost = split[0]
@@ -68,8 +68,8 @@ func BuildClientConfig(client model.Client, server model.Server, setting model.G
 	peerEndpoint := fmt.Sprintf("Endpoint = %s:%d\n", desiredHost, desiredPort)
 
 	peerPersistentKeepalive := ""
-	if setting.PersistentKeepalive > 0 {
-		peerPersistentKeepalive = fmt.Sprintf("PersistentKeepalive = %d\n", setting.PersistentKeepalive)
+	if iface.PersistentKeepalive > 0 {
+		peerPersistentKeepalive = fmt.Sprintf("PersistentKeepalive = %d\n", iface.PersistentKeepalive)
 	}
 
 	return "[Interface]\n" +
@@ -85,13 +85,14 @@ func BuildClientConfig(client model.Client, server model.Server, setting model.G
 		peerPersistentKeepalive
 }
 
-// WriteWireGuardServerConfig renders and writes the server's wg0.conf (or
-// the custom template at wgConfTemplate, if given) to globalSettings.ConfigFilePath.
-//
-// NOTE: this still targets a *local* WireGuard interface file. It is kept
-// as-is during this structural refactor; swapping it for a Mikrotik
-// RouterOS 7 SSH-based apply step is the next phase of this project.
-func WriteWireGuardServerConfig(wgConfTemplate string, serverConfig model.Server, clientDataList []model.ClientData, usersList []model.User, globalSettings model.GlobalSetting) error {
+// WriteWireGuardServerConfig renders and writes one interface's wg0.conf
+// (or the custom template at wgConfTemplate, if given) to
+// iface.ConfigFilePath. clientDataList should already be filtered to just
+// this interface's clients -- every enabled one becomes a [Peer] block,
+// whether it's an allowed client (no Endpoint) or an upstream "Connect To"
+// peer (Endpoint set): wg-quick treats both identically, the Endpoint
+// field is what makes this side dial out to it.
+func WriteWireGuardServerConfig(wgConfTemplate string, iface model.WgInterface, clientDataList []model.ClientData, usersList []model.User) error {
 	var tmplContent string
 
 	if wgConfTemplate != "" {
@@ -122,16 +123,15 @@ func WriteWireGuardServerConfig(wgConfTemplate string, serverConfig model.Server
 		return err
 	}
 
-	f, err := os.Create(globalSettings.ConfigFilePath)
+	f, err := os.Create(iface.ConfigFilePath)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
 	data := map[string]interface{}{
-		"serverConfig":   serverConfig,
+		"iface":          iface,
 		"clientDataList": escaped,
-		"globalSettings": globalSettings,
 		"usersList":      usersList,
 	}
 
@@ -148,19 +148,12 @@ func ClientDefaultsFromEnv() model.ClientDefaults {
 	}
 }
 
-// GetCurrentHash fingerprints the on-disk client/server config directories,
-// used to detect changes that still need to be "applied".
+// GetCurrentHash fingerprints the on-disk client/interface config
+// directories, used to detect changes that still need to be "applied".
 func GetCurrentHash(db store.IStore) (string, string) {
 	hashClients, _ := dirhash.HashDir(path.Join(db.GetPath(), "clients"), "prefix", dirhash.Hash1)
-
-	files := []string{"prefix/global_settings.json", "prefix/interfaces.json", "prefix/keypair.json"}
-	serverDir := path.Join(db.GetPath(), "server")
-	osOpen := func(name string) (io.ReadCloser, error) {
-		return os.Open(filepath.Join(serverDir, strings.TrimPrefix(name, "prefix")))
-	}
-	hashServer, _ := dirhash.Hash1(files, osOpen)
-
-	return hashClients, hashServer
+	hashInterfaces, _ := dirhash.HashDir(path.Join(db.GetPath(), "interfaces"), "prefix", dirhash.Hash1)
+	return hashClients, hashInterfaces
 }
 
 func HashesChanged(db store.IStore) bool {

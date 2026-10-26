@@ -20,7 +20,7 @@ import (
 
 // Register wires the "wireguard" module's endpoints into registry.
 //
-//	GET  /wireguard/clients/list
+//	GET  /wireguard/clients/list?interface_id=<id>
 //	GET  /wireguard/clients/get/<id>
 //	POST /wireguard/clients/create
 //	POST /wireguard/clients/update
@@ -29,15 +29,16 @@ import (
 //	GET  /wireguard/clients/download/<id>
 //	POST /wireguard/clients/email
 //	POST /wireguard/clients/telegram
-//	GET  /wireguard/clients/suggestips
+//	GET  /wireguard/clients/suggestips?interface_id=<id>
 //
-//	GET  /wireguard/server/get                    (admin)
-//	POST /wireguard/server/updateinterfaces       (admin)
-//	POST /wireguard/server/updatekeypair          (admin)
-//	POST /wireguard/server/applyconfig            (admin)
-//
-//	GET  /wireguard/settings/get                  (admin)
-//	POST /wireguard/settings/update                (admin)
+//	GET  /wireguard/interfaces/list                (admin)
+//	GET  /wireguard/interfaces/get/<id>            (admin)
+//	POST /wireguard/interfaces/create              (admin)
+//	POST /wireguard/interfaces/update              (admin)
+//	POST /wireguard/interfaces/delete              (admin)
+//	POST /wireguard/interfaces/updatekeypair       (admin)
+//	POST /wireguard/interfaces/applyconfig         (admin)
+//	POST /wireguard/interfaces/applyall            (admin)
 //
 //	GET  /wireguard/mikrotik/get                  (admin)
 //	POST /wireguard/mikrotik/update               (admin)
@@ -61,17 +62,16 @@ func Register(registry *core.Registry, cfg *config.App, db store.IStore, mailer 
 	registry.RegisterMethod("wireguard", "clients", "suggestips", requireAuth(clients.SuggestIPs))
 	registry.RegisterMethod("wireguard", "clients", "defaults", requireAuth(clients.Defaults))
 
-	server := NewServerController(db, cfg.WgConfTemplate)
-	registry.RegisterController("wireguard", "server", server)
-	registry.RegisterMethod("wireguard", "server", "get", requireAuth(middleware.RequireAdmin(server.Get)))
-	registry.RegisterMethod("wireguard", "server", "updateinterfaces", requireAuth(middleware.RequireAdmin(server.UpdateInterfaces)))
-	registry.RegisterMethod("wireguard", "server", "updatekeypair", requireAuth(middleware.RequireAdmin(server.UpdateKeyPair)))
-	registry.RegisterMethod("wireguard", "server", "applyconfig", requireAuth(middleware.RequireAdmin(server.ApplyConfig)))
-
-	settings := NewSettingsController(db)
-	registry.RegisterController("wireguard", "settings", settings)
-	registry.RegisterMethod("wireguard", "settings", "get", requireAuth(middleware.RequireAdmin(settings.Get)))
-	registry.RegisterMethod("wireguard", "settings", "update", requireAuth(middleware.RequireAdmin(settings.Update)))
+	interfaces := NewInterfacesController(db, cfg.WgConfTemplate)
+	registry.RegisterController("wireguard", "interfaces", interfaces)
+	registry.RegisterMethod("wireguard", "interfaces", "list", requireAuth(middleware.RequireAdmin(interfaces.List)))
+	registry.RegisterMethod("wireguard", "interfaces", "get", requireAuth(middleware.RequireAdmin(interfaces.Get)))
+	registry.RegisterMethod("wireguard", "interfaces", "create", requireAuth(middleware.RequireAdmin(interfaces.Create)))
+	registry.RegisterMethod("wireguard", "interfaces", "update", requireAuth(middleware.RequireAdmin(interfaces.Update)))
+	registry.RegisterMethod("wireguard", "interfaces", "delete", requireAuth(middleware.RequireAdmin(interfaces.Delete)))
+	registry.RegisterMethod("wireguard", "interfaces", "updatekeypair", requireAuth(middleware.RequireAdmin(interfaces.UpdateKeyPair)))
+	registry.RegisterMethod("wireguard", "interfaces", "applyconfig", requireAuth(middleware.RequireAdmin(interfaces.ApplyConfig)))
+	registry.RegisterMethod("wireguard", "interfaces", "applyall", requireAuth(middleware.RequireAdmin(interfaces.ApplyAll)))
 
 	mikrotikSettings := NewMikrotikSettingsController(db)
 	registry.RegisterController("wireguard", "mikrotik", mikrotikSettings)
@@ -96,8 +96,7 @@ func registerMenus(registry *core.Registry) {
 		List: []core.MenuItem{
 			{Link: "/", Label: "Clients"},
 			{Link: "/status/", Label: "Status"},
-			{Link: "/server/", Label: "Server", Admin: true},
-			{Link: "/settings/", Label: "Global Settings", Admin: true},
+			{Link: "/interfaces/", Label: "Interfaces", Admin: true},
 			{Link: "/mikrotik/", Label: "Mikrotik Integration", Admin: true},
 		},
 	})

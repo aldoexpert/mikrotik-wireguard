@@ -14,12 +14,10 @@ type IStore interface {
 	SaveUser(user model.User) error
 	DeleteUser(username string) error
 
-	GetGlobalSettings() (model.GlobalSetting, error)
-	SaveGlobalSettings(globalSettings model.GlobalSetting) error
-
-	GetServer() (model.Server, error)
-	SaveServerInterface(serverInterface model.ServerInterface) error
-	SaveServerKeyPair(serverKeyPair model.ServerKeypair) error
+	GetInterfaces() ([]model.WgInterface, error)
+	GetInterfaceByID(id string) (model.WgInterface, error)
+	SaveInterface(iface model.WgInterface) error
+	DeleteInterface(id string) error
 
 	GetMikrotikSettings() (model.MikrotikSettings, error)
 	SaveMikrotikSettings(settings model.MikrotikSettings) error

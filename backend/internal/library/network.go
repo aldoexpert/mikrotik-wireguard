@@ -90,24 +90,28 @@ func GetSubnetRangesString() string {
 }
 
 // ValidateAndFixSubnetRanges drops any configured CIDR that does not belong
-// to one of the server's own interface addresses.
+// to one of any WireGuard interface's own addresses (across every
+// interface, since MTWG_SUBNET_RANGES is a global pool of named ranges
+// that could belong to any of them).
 func ValidateAndFixSubnetRanges(db store.IStore) error {
 	if len(SubnetRangesOrder) == 0 {
 		return nil
 	}
 
-	server, err := db.GetServer()
+	interfaces, err := db.GetInterfaces()
 	if err != nil {
 		return err
 	}
 
 	var serverSubnets []*net.IPNet
-	for _, addr := range server.Interface.Addresses {
-		_, netAddr, err := net.ParseCIDR(strings.TrimSpace(addr))
-		if err != nil {
-			return err
+	for _, iface := range interfaces {
+		for _, addr := range iface.Config.Addresses {
+			_, netAddr, err := net.ParseCIDR(strings.TrimSpace(addr))
+			if err != nil {
+				return err
+			}
+			serverSubnets = append(serverSubnets, netAddr)
 		}
-		serverSubnets = append(serverSubnets, netAddr)
 	}
 
 	for _, rng := range SubnetRangesOrder {
@@ -259,17 +263,19 @@ func GetIPFromCIDR(cidr string) (string, error) {
 	return ip.String(), nil
 }
 
-// GetAllocatedIPs collects every IP already in use (server + all clients
-// except ignoreClientID) by reading through the store, instead of opening a
-// second, hardcoded connection to the database directory.
-func GetAllocatedIPs(db store.IStore, ignoreClientID string) ([]string, error) {
+// GetAllocatedIPs collects every IP already in use on interfaceID's own
+// address pool -- the interface's own address(es) plus every client
+// scoped to that same interface, except ignoreClientID. IP pools are
+// per-interface, so clients of a different interface are never
+// considered (even if their subnets happened to overlap).
+func GetAllocatedIPs(db store.IStore, interfaceID, ignoreClientID string) ([]string, error) {
 	allocated := make([]string, 0)
 
-	server, err := db.GetServer()
+	iface, err := db.GetInterfaceByID(interfaceID)
 	if err != nil {
 		return nil, err
 	}
-	for _, cidr := range server.Interface.Addresses {
+	for _, cidr := range iface.Config.Addresses {
 		ip, err := GetIPFromCIDR(cidr)
 		if err != nil {
 			return nil, err
@@ -282,7 +288,7 @@ func GetAllocatedIPs(db store.IStore, ignoreClientID string) ([]string, error) {
 		return nil, err
 	}
 	for _, cd := range clients {
-		if cd.Client == nil || cd.Client.ID == ignoreClientID {
+		if cd.Client == nil || cd.Client.ID == ignoreClientID || cd.Client.InterfaceID != interfaceID {
 			continue
 		}
 		for _, cidr := range cd.Client.AllocatedIPs {

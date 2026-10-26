@@ -15,46 +15,74 @@
               <li>
                 <div class="item-content item-input">
                   <div class="item-inner">
-                    <div class="item-title item-label">Name</div>
-                    <div class="item-input-wrap"><input type="text" required value="${form.name}" @input="${(e) => { form.name = e.target.value; }}" /></div>
-                  </div>
-                </div>
-              </li>
-              <li>
-                <div class="item-content item-input">
-                  <div class="item-inner">
-                    <div class="item-title item-label">Email (optional)</div>
-                    <div class="item-input-wrap"><input type="email" value="${form.email}" @input="${(e) => { form.email = e.target.value; }}" /></div>
-                  </div>
-                </div>
-              </li>
-              <li>
-                <div class="item-content item-input">
-                  <div class="item-inner">
-                    <div class="item-title item-label">Telegram User ID (optional)</div>
-                    <div class="item-input-wrap"><input type="text" value="${form.telegram_userid}" @input="${(e) => { form.telegram_userid = e.target.value; }}" /></div>
-                  </div>
-                </div>
-              </li>
-              <li>
-                <div class="item-content item-input">
-                  <div class="item-inner">
-                    <div class="item-title item-label">Allocated IPs (CIDR, comma separated)</div>
+                    <div class="item-title item-label">Interface</div>
                     <div class="item-input-wrap">
-                      <input type="text" value="${form.allocated_ips}" @input="${(e) => { form.allocated_ips = e.target.value; }}" />
+                      <select required value="${form.interface_id}" @change="${(e) => { form.interface_id = e.target.value; $update(); }}">
+                        <option value="" disabled>Select an interface...</option>
+                        ${interfaces.map((iface) => $h`<option value="${iface.id}" selected=${form.interface_id === iface.id}>${iface.name} (${iface.wg_name})</option>`)}
+                      </select>
                     </div>
                   </div>
                 </div>
               </li>
               <li>
-                <div class="item-content">
-                  <a href="#" class="button button-small" @click="${(e) => { e.preventDefault(); suggestIP(); }}">Suggest IP</a>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">Peer Role</div>
+                    <div class="item-input-wrap">
+                      <select value="${form.role}" @change="${(e) => { form.role = e.target.value; $update(); }}">
+                        <option value="allowed" selected=${form.role === 'allowed'}>Allowed Client (connects to this interface)</option>
+                        <option value="upstream" selected=${form.role === 'upstream'}>Connect To (this interface dials out to a remote server)</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
               </li>
               <li>
                 <div class="item-content item-input">
                   <div class="item-inner">
-                    <div class="item-title item-label">Allowed IPs (CIDR, comma separated)</div>
+                    <div class="item-title item-label">Name</div>
+                    <div class="item-input-wrap"><input type="text" required value="${form.name}" @input="${(e) => { form.name = e.target.value; }}" /></div>
+                  </div>
+                </div>
+              </li>
+              ${form.role === 'allowed' ? $h`
+                <li>
+                  <div class="item-content item-input">
+                    <div class="item-inner">
+                      <div class="item-title item-label">Email (optional)</div>
+                      <div class="item-input-wrap"><input type="email" value="${form.email}" @input="${(e) => { form.email = e.target.value; }}" /></div>
+                    </div>
+                  </div>
+                </li>
+                <li>
+                  <div class="item-content item-input">
+                    <div class="item-inner">
+                      <div class="item-title item-label">Telegram User ID (optional)</div>
+                      <div class="item-input-wrap"><input type="text" value="${form.telegram_userid}" @input="${(e) => { form.telegram_userid = e.target.value; }}" /></div>
+                    </div>
+                  </div>
+                </li>
+                <li>
+                  <div class="item-content item-input">
+                    <div class="item-inner">
+                      <div class="item-title item-label">Allocated IPs (CIDR, comma separated)</div>
+                      <div class="item-input-wrap">
+                        <input type="text" value="${form.allocated_ips}" @input="${(e) => { form.allocated_ips = e.target.value; }}" />
+                      </div>
+                    </div>
+                  </div>
+                </li>
+                <li>
+                  <div class="item-content">
+                    <a href="#" class="button button-small" @click="${(e) => { e.preventDefault(); suggestIP(); }}">Suggest IP</a>
+                  </div>
+                </li>
+              ` : ''}
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">${form.role === 'upstream' ? 'Networks routed through this tunnel (CIDR, comma separated)' : 'Allowed IPs (CIDR, comma separated)'}</div>
                     <div class="item-input-wrap"><input type="text" value="${form.allowed_ips}" @input="${(e) => { form.allowed_ips = e.target.value; }}" /></div>
                   </div>
                 </div>
@@ -70,19 +98,29 @@
               <li>
                 <div class="item-content item-input">
                   <div class="item-inner">
-                    <div class="item-title item-label">Endpoint override (optional)</div>
-                    <div class="item-input-wrap"><input type="text" value="${form.endpoint}" @input="${(e) => { form.endpoint = e.target.value; }}" /></div>
+                    <div class="item-title item-label">${form.role === 'upstream' ? 'Remote server endpoint (host:port, required)' : 'Endpoint override (optional)'}</div>
+                    <div class="item-input-wrap"><input type="text" required=${form.role === 'upstream'} placeholder="${form.role === 'upstream' ? '203.0.113.10:51820' : ''}" value="${form.endpoint}" @input="${(e) => { form.endpoint = e.target.value; }}" /></div>
                   </div>
                 </div>
               </li>
               <li>
-                <div class="item-content">
+                <div class="item-content item-input">
                   <div class="item-inner">
-                    <div class="item-title">Use server DNS</div>
-                    <div class="item-after"><label class="toggle"><input type="checkbox" checked=${form.use_server_dns} @change="${(e) => { form.use_server_dns = e.target.checked; }}" /><span class="toggle-icon"></span></label></div>
+                    <div class="item-title item-label">${form.role === 'upstream' ? "Remote server's public key" : 'Public key (optional, auto-generated if blank)'}</div>
+                    <div class="item-input-wrap"><input type="text" required=${form.role === 'upstream'} value="${form.public_key}" @input="${(e) => { form.public_key = e.target.value; }}" /></div>
                   </div>
                 </div>
               </li>
+              ${form.role === 'allowed' ? $h`
+                <li>
+                  <div class="item-content">
+                    <div class="item-inner">
+                      <div class="item-title">Use server DNS</div>
+                      <div class="item-after"><label class="toggle"><input type="checkbox" checked=${form.use_server_dns} @change="${(e) => { form.use_server_dns = e.target.checked; }}" /><span class="toggle-icon"></span></label></div>
+                    </div>
+                  </div>
+                </li>
+              ` : ''}
               <li>
                 <div class="item-content">
                   <div class="item-inner">
@@ -122,7 +160,10 @@ export default (props, { $f7, $update }) => {
 
   let loading = true;
   let saving = false;
+  let interfaces = [];
   let form = {
+    interface_id: '',
+    role: 'allowed', // 'allowed' (Client.Endpoint blank) or 'upstream' (Client.Endpoint set, "Connect To")
     name: '',
     email: '',
     telegram_userid: '',
@@ -144,10 +185,15 @@ export default (props, { $f7, $update }) => {
     loading = true;
     $update();
     try {
+      const ifacesRes = await api.get('/wireguard/interfaces/list');
+      interfaces = ifacesRes.datas || [];
+
       if (isEdit) {
         const res = await api.get(`/wireguard/clients/get/${id}`);
         const c = res.data.client;
         form = {
+          interface_id: c.interface_id || '',
+          role: c.endpoint ? 'upstream' : 'allowed',
           name: c.name || '',
           email: c.email || '',
           telegram_userid: c.telegram_userid || '',
@@ -162,6 +208,7 @@ export default (props, { $f7, $update }) => {
           preshared_key: c.preshared_key || '',
         };
       } else {
+        if (interfaces.length === 1) form.interface_id = interfaces[0].id;
         const res = await api.get('/wireguard/clients/defaults');
         form.allowed_ips = toCSV(res.data.allowed_ips);
         form.extra_allowed_ips = toCSV(res.data.extra_allowed_ips);
@@ -177,8 +224,12 @@ export default (props, { $f7, $update }) => {
   };
 
   const suggestIP = async () => {
+    if (!form.interface_id) {
+      notifyError($f7, 'Select an interface first');
+      return;
+    }
     try {
-      const res = await api.get('/wireguard/clients/suggestips');
+      const res = await api.get('/wireguard/clients/suggestips', { interface_id: form.interface_id });
       const suggestions = res.datas || [];
       if (suggestions.length === 0) {
         notifyError($f7, 'No IP address is available');
@@ -197,16 +248,18 @@ export default (props, { $f7, $update }) => {
     saving = true;
     $update();
 
+    const isUpstream = form.role === 'upstream';
     const payload = {
       id: id || undefined,
+      interface_id: form.interface_id,
       name: form.name,
-      email: form.email,
-      telegram_userid: form.telegram_userid,
-      allocated_ips: fromCSV(form.allocated_ips),
+      email: isUpstream ? '' : form.email,
+      telegram_userid: isUpstream ? '' : form.telegram_userid,
+      allocated_ips: isUpstream ? [] : fromCSV(form.allocated_ips),
       allowed_ips: fromCSV(form.allowed_ips),
       extra_allowed_ips: fromCSV(form.extra_allowed_ips),
-      endpoint: form.endpoint,
-      use_server_dns: form.use_server_dns,
+      endpoint: isUpstream ? form.endpoint : '',
+      use_server_dns: isUpstream ? false : form.use_server_dns,
       enabled: form.enabled,
       additional_notes: form.additional_notes,
       public_key: form.public_key,

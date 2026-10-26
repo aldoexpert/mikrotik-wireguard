@@ -1,0 +1,272 @@
+<template>
+  <div class="page" data-name="interface-form">
+    <div class="navbar">
+      <div class="navbar-bg"></div>
+      <div class="navbar-inner">
+        <div class="left"><a href="#" class="link back"><i class="icon icon-back"></i><span class="if-not-md">Back</span></a></div>
+        <div class="title">${isEdit ? 'Edit Interface' : 'Add Interface'}</div>
+      </div>
+    </div>
+    <div class="page-content">
+      ${loading ? $h`<div class="block text-align-center"><div class="preloader"></div></div>` : $h`
+        <div class="block-title">Interface</div>
+        <form @submit="${handleSubmit}">
+          <div class="list no-hairlines-md">
+            <ul>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">Name</div>
+                    <div class="item-input-wrap"><input type="text" required placeholder="Office VPN" value="${form.name}" @input="${(e) => { form.name = e.target.value; }}" /></div>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">RouterOS/kernel interface name</div>
+                    <div class="item-input-wrap"><input type="text" required placeholder="wireguard1" value="${form.wg_name}" @input="${(e) => { form.wg_name = e.target.value; }}" /></div>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">Addresses (CIDR, comma separated)</div>
+                    <div class="item-input-wrap"><input type="text" value="${form.addresses}" @input="${(e) => { form.addresses = e.target.value; }}" /></div>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">Listen Port</div>
+                    <div class="item-input-wrap"><input type="number" value="${form.listen_port}" @input="${(e) => { form.listen_port = e.target.value; }}" /></div>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">Endpoint address (public host/IP for clients)</div>
+                    <div class="item-input-wrap"><input type="text" value="${form.endpoint_address}" @input="${(e) => { form.endpoint_address = e.target.value; }}" /></div>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">DNS servers (comma separated)</div>
+                    <div class="item-input-wrap"><input type="text" value="${form.dns_servers}" @input="${(e) => { form.dns_servers = e.target.value; }}" /></div>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">MTU</div>
+                    <div class="item-input-wrap"><input type="number" value="${form.mtu}" @input="${(e) => { form.mtu = e.target.value; }}" /></div>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">Persistent Keepalive (seconds)</div>
+                    <div class="item-input-wrap"><input type="number" value="${form.persistent_keepalive}" @input="${(e) => { form.persistent_keepalive = e.target.value; }}" /></div>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">PostUp</div>
+                    <div class="item-input-wrap"><input type="text" value="${form.post_up}" @input="${(e) => { form.post_up = e.target.value; }}" /></div>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">PreDown</div>
+                    <div class="item-input-wrap"><input type="text" value="${form.pre_down}" @input="${(e) => { form.pre_down = e.target.value; }}" /></div>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">PostDown</div>
+                    <div class="item-input-wrap"><input type="text" value="${form.post_down}" @input="${(e) => { form.post_down = e.target.value; }}" /></div>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">Config file path</div>
+                    <div class="item-input-wrap"><input type="text" value="${form.config_file_path}" @input="${(e) => { form.config_file_path = e.target.value; }}" /></div>
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </div>
+          <div class="block">
+            <button type="submit" class="button button-fill button-large" ${saving ? 'disabled' : ''}>${saving ? 'Saving...' : 'Save'}</button>
+          </div>
+        </form>
+
+        ${isEdit ? $h`
+          <div class="block-title">Key Pair</div>
+          <div class="list simple-list">
+            <ul>
+              <li>Public Key: <span class="mtwg-muted">${keyPair.public_key}</span></li>
+            </ul>
+          </div>
+          <div class="block">
+            <button class="button button-outline" @click="${regenerateKeyPair}">Generate New Key Pair</button>
+          </div>
+
+          <div class="block-title">Apply Configuration</div>
+          <div class="block">
+            <p class="mtwg-muted">Re-writes this interface's WireGuard configuration from the current data.</p>
+            <button class="button button-fill color-orange" @click="${applyConfig}" ${applying ? 'disabled' : ''}>${applying ? 'Applying...' : 'Apply Configuration'}</button>
+          </div>
+        ` : ''}
+      `}
+    </div>
+  </div>
+</template>
+<script>
+import api, { ApiError } from '../js/api.js';
+import { notifySuccess, notifyError, errorMessage } from '../js/notify.js';
+
+export default (props, { $f7, $update }) => {
+  const id = props.id || null;
+  const isEdit = !!id;
+
+  let loading = true;
+  let saving = false;
+  let applying = false;
+  let keyPair = { public_key: '' };
+  let form = {
+    name: '',
+    wg_name: '',
+    addresses: '',
+    listen_port: 51820,
+    endpoint_address: '',
+    dns_servers: '',
+    mtu: 1450,
+    persistent_keepalive: 15,
+    post_up: '',
+    pre_down: '',
+    post_down: '',
+    config_file_path: '',
+  };
+
+  const toCSV = (arr) => (arr || []).join(', ');
+  const fromCSV = (str) => (str || '').split(',').map((s) => s.trim()).filter(Boolean);
+
+  const load = async () => {
+    if (!isEdit) {
+      loading = false;
+      $update();
+      return;
+    }
+    loading = true;
+    $update();
+    try {
+      const res = await api.get(`/wireguard/interfaces/get/${id}`);
+      const iface = res.data;
+      form = {
+        name: iface.name || '',
+        wg_name: iface.wg_name || '',
+        addresses: toCSV(iface.config.addresses),
+        listen_port: iface.config.listen_port,
+        endpoint_address: iface.endpoint_address || '',
+        dns_servers: toCSV(iface.dns_servers),
+        mtu: iface.mtu,
+        persistent_keepalive: iface.persistent_keepalive,
+        post_up: iface.config.post_up || '',
+        pre_down: iface.config.pre_down || '',
+        post_down: iface.config.post_down || '',
+        config_file_path: iface.config_file_path || '',
+      };
+      keyPair = { public_key: iface.key_pair.public_key };
+    } catch (err) {
+      notifyError($f7, errorMessage(err, ApiError, 'Failed to load the interface'));
+    } finally {
+      loading = false;
+      $update();
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    saving = true;
+    $update();
+
+    const payload = {
+      id: id || undefined,
+      name: form.name,
+      wg_name: form.wg_name,
+      addresses: fromCSV(form.addresses),
+      listen_port: String(form.listen_port),
+      endpoint_address: form.endpoint_address,
+      dns_servers: fromCSV(form.dns_servers),
+      mtu: String(form.mtu),
+      persistent_keepalive: String(form.persistent_keepalive),
+      post_up: form.post_up,
+      pre_down: form.pre_down,
+      post_down: form.post_down,
+      config_file_path: form.config_file_path,
+    };
+
+    try {
+      if (isEdit) {
+        await api.post('/wireguard/interfaces/update', payload);
+      } else {
+        await api.post('/wireguard/interfaces/create', payload);
+      }
+      $f7.views.main.router.navigate('/interfaces/', { reloadAll: true });
+    } catch (err) {
+      notifyError($f7, errorMessage(err, ApiError, 'Failed to save the interface'));
+    } finally {
+      saving = false;
+      $update();
+    }
+  };
+
+  const regenerateKeyPair = () => {
+    $f7.dialog.confirm('The old key pair will be replaced. Every client on this interface will need to be reconfigured. Continue?', async () => {
+      try {
+        const res = await api.post('/wireguard/interfaces/updatekeypair', { id });
+        keyPair = { public_key: res.data.key_pair.public_key };
+        notifySuccess($f7, 'Interface key pair updated. Don\'t forget to "Apply Configuration".');
+      } catch (err) {
+        notifyError($f7, errorMessage(err, ApiError, 'Failed to generate a new key pair'));
+      } finally {
+        $update();
+      }
+    });
+  };
+
+  const applyConfig = async () => {
+    applying = true;
+    $update();
+    try {
+      await api.post('/wireguard/interfaces/applyconfig', { id });
+      notifySuccess($f7, 'Interface configuration applied successfully.');
+    } catch (err) {
+      notifyError($f7, errorMessage(err, ApiError, 'Failed to apply the configuration'));
+    } finally {
+      applying = false;
+      $update();
+    }
+  };
+
+  load();
+
+  return $render;
+};
+</script>

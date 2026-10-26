@@ -26,8 +26,6 @@ import (
 	"github.com/aldoexpert/mikrotik-wireguard/internal/model"
 )
 
-const defaultInterfaceName = "wireguard1"
-
 // Dial opens an SSH connection to the RouterOS device.
 func Dial(settings model.MikrotikSettings) (*ssh.Client, error) {
 	if settings.Host == "" {
@@ -118,20 +116,16 @@ type PeerStatus struct {
 	LastHandshake   string // RouterOS duration string, e.g. "1m2s" or "never"
 }
 
-// GetPeerStatuses lists the live state of every peer on the configured
-// WireGuard interface, used by the Status page instead of the local
-// wgctrl device when the Mikrotik integration is Enabled.
-func GetPeerStatuses(settings model.MikrotikSettings) ([]PeerStatus, error) {
+// GetPeerStatuses lists the live state of every peer on ifName (a
+// RouterOS WireGuard interface, i.e. WgInterface.WgName), used by the
+// Status page instead of the local wgctrl device when the Mikrotik
+// integration is Enabled.
+func GetPeerStatuses(settings model.MikrotikSettings, ifName string) ([]PeerStatus, error) {
 	client, err := Dial(settings)
 	if err != nil {
 		return nil, err
 	}
 	defer client.Close()
-
-	ifName := settings.Interface
-	if ifName == "" {
-		ifName = defaultInterfaceName
-	}
 
 	out, err := run(client, fmt.Sprintf("/interface wireguard peers print terse where interface=%s", quote(ifName)))
 	if err != nil {
@@ -258,6 +252,20 @@ func peerTag(clientID string) string {
 	return "mtwg:" + clientID
 }
 
+// splitEndpoint splits a "host:port" string into its parts, defaulting to
+// the standard WireGuard port if none is given or it fails to parse.
+func splitEndpoint(endpoint string) (string, int) {
+	host := endpoint
+	port := 51820
+	if idx := strings.LastIndex(endpoint, ":"); idx != -1 {
+		host = endpoint[:idx]
+		if n, err := strconv.Atoi(endpoint[idx+1:]); err == nil {
+			port = n
+		}
+	}
+	return host, port
+}
+
 // quote renders a Go string as a RouterOS script string literal.
 func quote(s string) string {
 	s = strings.ReplaceAll(s, "\\", "\\\\")
@@ -265,12 +273,22 @@ func quote(s string) string {
 	return "\"" + s + "\""
 }
 
-// ApplySync pushes the WireGuard server interface and every enabled
-// client (as a tagged peer) to the Mikrotik device. It is safe to call
-// repeatedly: existing peers are updated in place, clients that are no
-// longer enabled have their peer removed, and anything on the interface
-// that this app didn't create (comment not starting with "mtwg:") is
-// left untouched.
+// ApplySync pushes one WireGuard interface and every enabled client
+// (as a tagged peer) scoped to it to the Mikrotik device. clients must
+// already be filtered to iface -- callers apply once per interface. It is
+// safe to call repeatedly: existing peers are updated in place, clients
+// that are no longer enabled have their peer removed, and anything on the
+// interface that this app didn't create (comment not starting with
+// "mtwg:") is left untouched.
+//
+// A client peer takes one of two roles, decided purely by whether
+// Client.Endpoint is set (see Client's doc comment): blank means an
+// "allowed client" that is expected to connect in, and the peer is added
+// without an endpoint; set means a "Connect To" upstream peer, and the
+// peer is added *with* endpoint-address/endpoint-port so this interface
+// proactively dials out to it. WireGuard (and RouterOS) has no other
+// structural distinction between the two -- a single interface can host
+// both kinds of peer at once.
 //
 // Every add-vs-update-vs-remove decision is made here in Go, from a
 // snapshot read up front -- never via a RouterOS `:if ([:len ...] = 0)
@@ -280,17 +298,14 @@ func quote(s string) string {
 // stale fields in place), so updates to an existing peer/interface never
 // actually applied. Reading first and emitting only direct, unconditional
 // commands avoids that failure mode entirely.
-func ApplySync(settings model.MikrotikSettings, server model.Server, clients []model.ClientData, globalSettings model.GlobalSetting) error {
+func ApplySync(settings model.MikrotikSettings, iface model.WgInterface, clients []model.ClientData) error {
 	client, err := Dial(settings)
 	if err != nil {
 		return err
 	}
 	defer client.Close()
 
-	ifName := settings.Interface
-	if ifName == "" {
-		ifName = defaultInterfaceName
-	}
+	ifName := iface.WgName
 
 	ifaceExists, err := interfaceExists(client, ifName)
 	if err != nil {
@@ -307,11 +322,11 @@ func ApplySync(settings model.MikrotikSettings, server model.Server, clients []m
 
 	var script strings.Builder
 
-	// 1. Ensure the WireGuard interface exists with the current server
+	// 1. Ensure the WireGuard interface exists with the current interface
 	//    key pair, listen port and MTU.
-	ifArgs := fmt.Sprintf("private-key=%s listen-port=%d", quote(server.KeyPair.PrivateKey), server.Interface.ListenPort)
-	if globalSettings.MTU > 0 {
-		ifArgs += fmt.Sprintf(" mtu=%d", globalSettings.MTU)
+	ifArgs := fmt.Sprintf("private-key=%s listen-port=%d", quote(iface.KeyPair.PrivateKey), iface.Config.ListenPort)
+	if iface.MTU > 0 {
+		ifArgs += fmt.Sprintf(" mtu=%d", iface.MTU)
 	}
 	if ifaceExists {
 		fmt.Fprintf(&script, "/interface wireguard set [find where name=%s] %s\n", quote(ifName), ifArgs)
@@ -323,8 +338,8 @@ func ApplySync(settings model.MikrotikSettings, server model.Server, clients []m
 	//     router (/ip address) -- without this the router has no routable
 	//     address inside the tunnel subnet, so peers can handshake but
 	//     traffic to/from "the server" itself has nowhere to go.
-	desiredAddrs := make(map[string]bool, len(server.Interface.Addresses))
-	for _, addr := range server.Interface.Addresses {
+	desiredAddrs := make(map[string]bool, len(iface.Config.Addresses))
+	for _, addr := range iface.Config.Addresses {
 		desiredAddrs[addr] = true
 		if !existingAddrs[addr] {
 			fmt.Fprintf(&script, "/ip address add interface=%s address=%s\n", quote(ifName), quote(addr))
@@ -338,7 +353,12 @@ func ApplySync(settings model.MikrotikSettings, server model.Server, clients []m
 
 	// 2. Upsert one peer per enabled client, keeping the "AllowedIPs on
 	//    the server side = this client's own address space" convention
-	//    already used by the local wg0.conf template.
+	//    already used by the local wg0.conf template -- except for an
+	//    upstream ("Connect To") peer, which has no address of its own
+	//    allocated here, so its AllowedIPs instead comes from the
+	//    client's own AllowedIPs field (the remote networks to route
+	//    through this tunnel), and endpoint-address/endpoint-port are
+	//    set so this interface dials out to it instead of waiting.
 	desiredTags := make(map[string]bool, len(clients))
 	for _, cd := range clients {
 		c := cd.Client
@@ -348,14 +368,24 @@ func ApplySync(settings model.MikrotikSettings, server model.Server, clients []m
 		tag := peerTag(c.ID)
 		desiredTags[tag] = true
 
-		allowed := append(append([]string{}, c.AllocatedIPs...), c.ExtraAllowedIPs...)
+		var allowed []string
+		if c.IsUpstream() {
+			allowed = append(append([]string{}, c.AllowedIPs...), c.ExtraAllowedIPs...)
+		} else {
+			allowed = append(append([]string{}, c.AllocatedIPs...), c.ExtraAllowedIPs...)
+		}
+
 		args := fmt.Sprintf("name=%s interface=%s public-key=%s allowed-address=%s comment=%s",
 			quote(c.Name), quote(ifName), quote(c.PublicKey), quote(strings.Join(allowed, ",")), quote(tag))
 		if c.PresharedKey != "" {
 			args += " preshared-key=" + quote(c.PresharedKey)
 		}
-		if globalSettings.PersistentKeepalive > 0 {
-			args += fmt.Sprintf(" persistent-keepalive=%ds", globalSettings.PersistentKeepalive)
+		if iface.PersistentKeepalive > 0 {
+			args += fmt.Sprintf(" persistent-keepalive=%ds", iface.PersistentKeepalive)
+		}
+		if c.IsUpstream() {
+			host, port := splitEndpoint(c.Endpoint)
+			args += fmt.Sprintf(" endpoint-address=%s endpoint-port=%d", quote(host), port)
 		}
 
 		if existingPeers[tag] {

@@ -1,0 +1,117 @@
+<template>
+  <div class="page" data-name="user-form">
+    <div class="navbar">
+      <div class="navbar-bg"></div>
+      <div class="navbar-inner">
+        <div class="left"><a href="#" class="link back"><i class="icon icon-back"></i><span class="if-not-md">Back</span></a></div>
+        <div class="title">${isEdit ? 'Edit User' : 'Add User'}</div>
+      </div>
+    </div>
+    <div class="page-content">
+      ${loading ? $h`<div class="block text-align-center"><div class="preloader"></div></div>` : $h`
+        <form @submit="${handleSubmit}">
+          <div class="list no-hairlines-md">
+            <ul>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">Username</div>
+                    <div class="item-input-wrap">
+                      <input type="text" required value="${form.username}" @input="${(e) => { form.username = e.target.value; }}" autocomplete="off" />
+                    </div>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="item-content item-input">
+                  <div class="item-inner">
+                    <div class="item-title item-label">${isEdit ? 'New Password' : 'Password'}</div>
+                    <div class="item-input-wrap">
+                      <input type="password" ${isEdit ? '' : 'required'} placeholder="${isEdit ? 'Leave blank to keep current' : ''}" value="${form.password}" @input="${(e) => { form.password = e.target.value; }}" autocomplete="new-password" />
+                    </div>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <div class="item-content">
+                  <div class="item-inner">
+                    <div class="item-title">Admin</div>
+                    <div class="item-after">
+                      <label class="toggle">
+                        <input type="checkbox" checked=${form.admin} @change="${(e) => { form.admin = e.target.checked; $update(); }}" />
+                        <span class="toggle-icon"></span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </div>
+          <div class="block">
+            <p class="mtwg-muted" style="font-size:13px;">
+              ${form.admin
+                ? 'Admin: full access including interfaces, Mikrotik settings, and user management.'
+                : 'Manager: can manage clients (add/edit/delete) but cannot change system settings.'}
+            </p>
+          </div>
+          <div class="block"><button type="submit" class="button button-fill button-large">Save</button></div>
+        </form>
+      `}
+    </div>
+  </div>
+</template>
+<script>
+import api, { ApiError } from '../js/api.js';
+import { notifyError, errorMessage } from '../js/notify.js';
+
+export default (props, { $f7router, $update }) => {
+  const username = props.username || null;
+  const isEdit = !!username;
+
+  let loading = isEdit;
+  let form = { username: '', password: '', admin: false };
+
+  const load = async () => {
+    if (!isEdit) return;
+    try {
+      const res = await api.get(`/users/account/get/${username}`);
+      const u = res.data;
+      form = { username: u.username, password: '', admin: u.admin };
+    } catch (err) {
+      notifyError($f7router.app, errorMessage(err, ApiError, 'Failed to load user'));
+      $f7router.back();
+      return;
+    } finally {
+      loading = false;
+      $update();
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (isEdit) {
+        await api.post('/users/account/update', {
+          previous_username: username,
+          username: form.username,
+          password: form.password,
+          admin: form.admin,
+        });
+      } else {
+        await api.post('/users/account/create', {
+          username: form.username,
+          password: form.password,
+          admin: form.admin,
+        });
+      }
+      $f7router.back();
+    } catch (err) {
+      notifyError($f7router.app, errorMessage(err, ApiError, isEdit ? 'Failed to update user' : 'Failed to create user'));
+    }
+  };
+
+  load();
+
+  return $render;
+};
+</script>

@@ -1,0 +1,106 @@
+<template>
+  <div class="page" data-name="interfaces">
+    <div class="navbar">
+      <div class="navbar-bg"></div>
+      <div class="navbar-inner sliding">
+        <div class="left"><a href="#" class="link icon-only panel-open" data-panel=".panel-left"><i class="icon f7-icons if-not-md">menu</i><i class="icon material-icons md-only">menu</i></a></div>
+        <div class="title">WireGuard Interfaces</div>
+        <div class="right">
+          <a href="/interfaces/new/" class="link icon-only">
+            <i class="icon f7-icons if-not-md">plus</i>
+            <i class="icon material-icons md-only">add</i>
+          </a>
+        </div>
+      </div>
+    </div>
+    <div class="page-content">
+      ${loading ? $h`<div class="block text-align-center"><div class="preloader"></div></div>` : ''}
+
+      ${!loading && interfaces.length === 0 ? $h`
+        <div class="block block-strong text-align-center">
+          <p>No WireGuard interfaces yet.</p>
+          <p class="mtwg-muted">Each interface is its own WireGuard listen port (wireguard1, wireguard2, ...). It can accept clients, connect out to other servers, or both at once.</p>
+          <a href="/interfaces/new/" class="button button-fill">Add Interface</a>
+        </div>
+      ` : ''}
+
+      <div class="list media-list no-hairlines-md">
+        <ul>
+          ${interfaces.map((iface) => $h`
+            <li class="swipeout">
+              <div class="item-content swipeout-content">
+                <div class="item-inner" @click="${() => goTo(iface)}">
+                  <div class="item-title-row">
+                    <div class="item-title">${iface.name} <span class="mtwg-muted">(${iface.wg_name})</span></div>
+                  </div>
+                  <div class="item-subtitle">${(iface.config.addresses || []).join(', ')} · Port ${iface.config.listen_port}</div>
+                  <div class="item-text">${clientCount(iface.id)} client(s)</div>
+                </div>
+              </div>
+              <div class="swipeout-actions-right">
+                <a href="/interfaces/${iface.id}/edit/" class="swipeout-close">Edit</a>
+                <a href="#" class="swipeout-delete color-red" @click="${(e) => { e.preventDefault(); removeInterface(iface); }}">Delete</a>
+              </div>
+            </li>
+          `)}
+        </ul>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import api, { ApiError } from '../js/api.js';
+import { notifyError, errorMessage } from '../js/notify.js';
+
+export default (props, { $f7, $update, $on }) => {
+  let loading = true;
+  let interfaces = [];
+  let clientCounts = {};
+
+  const load = async () => {
+    loading = true;
+    $update();
+    try {
+      const [ifacesRes, clientsRes] = await Promise.all([
+        api.get('/wireguard/interfaces/list'),
+        api.get('/wireguard/clients/list'),
+      ]);
+      interfaces = ifacesRes.datas || [];
+      clientCounts = {};
+      (clientsRes.datas || []).forEach((cd) => {
+        const id = cd.client.interface_id;
+        clientCounts[id] = (clientCounts[id] || 0) + 1;
+      });
+    } catch (err) {
+      notifyError($f7, errorMessage(err, ApiError, 'Failed to load the interface list'));
+    } finally {
+      loading = false;
+      $update();
+    }
+  };
+
+  $on('pageAfterIn', load);
+
+  const clientCount = (id) => clientCounts[id] || 0;
+
+  const goTo = (iface) => {
+    $f7.views.main.router.navigate(`/interfaces/${iface.id}/edit/`);
+  };
+
+  const removeInterface = (iface) => {
+    $f7.dialog.confirm(`Delete interface "${iface.name}" (${iface.wg_name})?`, async () => {
+      try {
+        await api.post('/wireguard/interfaces/delete', { id: iface.id });
+        interfaces = interfaces.filter((i) => i.id !== iface.id);
+        $update();
+      } catch (err) {
+        notifyError($f7, errorMessage(err, ApiError, 'Failed to delete the interface'));
+      }
+    });
+  };
+
+  load();
+
+  return $render;
+};
+</script>

@@ -11,6 +11,7 @@ import UserFormPage from '../pages/user-form.f7';
 import ProfilePage from '../pages/profile.f7';
 import StatusPage from '../pages/status.f7';
 import WolPage from '../pages/wol.f7';
+import WolFormPage from '../pages/wol-form.f7';
 import AboutPage from '../pages/about.f7';
 import NotFoundPage from '../pages/404.f7';
 
@@ -52,6 +53,7 @@ const routes = [
   { path: '/users/:username/edit/', component: UserFormPage, beforeEnter: requireAdmin },
   { path: '/profile/', component: ProfilePage, beforeEnter: requireAuth },
   { path: '/wol/', component: WolPage, beforeEnter: requireAuth },
+  { path: '/wol/new/', component: WolFormPage, beforeEnter: requireAuth },
   { path: '/about/', component: AboutPage },
   { path: '(.*)', component: NotFoundPage },
 ];

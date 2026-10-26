@@ -1,0 +1,60 @@
+<template>
+  <div class="page" data-name="wol-form">
+    <div class="navbar">
+      <div class="navbar-bg"></div>
+      <div class="navbar-inner">
+        <div class="left"><a href="#" class="link back"><i class="icon icon-back"></i><span class="if-not-md">Back</span></a></div>
+        <div class="title">Add Host</div>
+      </div>
+    </div>
+    <div class="page-content">
+      <form @submit="${handleSubmit}">
+        <div class="list no-hairlines-md">
+          <ul>
+            <li>
+              <div class="item-content item-input">
+                <div class="item-inner">
+                  <div class="item-title item-label">Name</div>
+                  <div class="item-input-wrap">
+                    <input type="text" required value="${form.name}" @input="${(e) => { form.name = e.target.value; }}" />
+                  </div>
+                </div>
+              </div>
+            </li>
+            <li>
+              <div class="item-content item-input">
+                <div class="item-inner">
+                  <div class="item-title item-label">MAC Address</div>
+                  <div class="item-input-wrap">
+                    <input type="text" required placeholder="AA:BB:CC:DD:EE:FF" value="${form.mac_address}" @input="${(e) => { form.mac_address = e.target.value; }}" />
+                  </div>
+                </div>
+              </div>
+            </li>
+          </ul>
+        </div>
+        <div class="block"><button type="submit" class="button button-fill button-large">Add Host</button></div>
+      </form>
+    </div>
+  </div>
+</template>
+<script>
+import api, { ApiError } from '../js/api.js';
+import { notifyError, errorMessage } from '../js/notify.js';
+
+export default (props, { $f7router }) => {
+  let form = { name: '', mac_address: '' };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post('/network/wol/save', form);
+      $f7router.back();
+    } catch (err) {
+      notifyError($f7router.app, errorMessage(err, ApiError, 'Failed to add the host'));
+    }
+  };
+
+  return $render;
+};
+</script>

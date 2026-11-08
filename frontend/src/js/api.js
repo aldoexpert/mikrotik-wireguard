@@ -80,6 +80,10 @@ const api = {
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
+    // Framework7's router intercepts clicks on any <a href>, including this
+    // one, and resolves the blob: URL as if it were a relative app route.
+    // The "external" class tells it to leave the click alone.
+    a.className = 'external';
     document.body.appendChild(a);
     a.click();
     a.remove();

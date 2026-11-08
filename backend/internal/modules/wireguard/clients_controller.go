@@ -499,6 +499,16 @@ func (c *ClientsController) Telegram(w http.ResponseWriter, r *http.Request, par
 		return
 	}
 
+	if clientData.Client.TgUserid == "" {
+		core.BadRequest(w, "This client has no Telegram User ID set. Edit the client and fill in its Telegram User ID first.")
+		return
+	}
+	userid, err := strconv.ParseInt(clientData.Client.TgUserid, 10, 64)
+	if err != nil {
+		core.BadRequest(w, "This client's Telegram User ID is not a valid number")
+		return
+	}
+
 	iface, _ := c.db.GetInterfaceByID(clientData.Client.InterfaceID)
 	conf := library.BuildClientConfig(*clientData.Client, iface)
 	confData := []byte(conf)
@@ -510,12 +520,6 @@ func (c *ClientsController) Telegram(w http.ResponseWriter, r *http.Request, par
 			core.InternalError(w, "qr gen: "+err.Error(), err)
 			return
 		}
-	}
-
-	userid, err := strconv.ParseInt(clientData.Client.TgUserid, 10, 64)
-	if err != nil {
-		core.InternalError(w, "userid: "+err.Error(), err)
-		return
 	}
 
 	if err := telegram.SendConfig(userid, clientData.Client.Name, confData, qrData, false); err != nil {

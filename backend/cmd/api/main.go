@@ -149,9 +149,15 @@ func initServerConfigIfMissing(db store.IStore, wgConfTemplate string) {
 	}
 }
 
+// buildEmailer returns nil when neither Sendgrid nor SMTP is configured in
+// .env, so callers can tell "not configured" apart from a real send failure
+// (see ClientsController.Email's c.mailer == nil check).
 func buildEmailer(cfg *config.App) emailer.Emailer {
 	if cfg.SendgridApiKey != "" {
 		return emailer.NewSendgridApiMail(cfg.SendgridApiKey, cfg.EmailFromName, cfg.EmailFrom)
+	}
+	if cfg.SmtpHostname == "" {
+		return nil
 	}
 	return emailer.NewSmtpMail(
 		cfg.SmtpHostname, cfg.SmtpPort, cfg.SmtpUsername, cfg.SmtpPassword, cfg.SmtpHelo,

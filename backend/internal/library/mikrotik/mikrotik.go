@@ -312,32 +312,40 @@ func peerAddArgs(ifName string, iface model.WgInterface, c model.Client) string 
 // field is set.
 //
 // Re-pasting this on the other router is always safe, even if the
-// client's address, keys or AllowedIPs changed since the last paste:
-// every resource it creates (interface, address, peer, route) is tagged
-// with the same "mtwg-client:<id>" comment and torn down by that tag
-// before being recreated, so this never depends on RouterOS treating a
-// *changed* name/address/field as a duplicate to reject -- only on an
-// identical one, which RouterOS does reject, being a no-op fallback for
-// the (harmless) case nothing changed. There's no inline :if/:len
-// existence check anywhere here, since ApplySync's doc comment below
-// records that idiom as unreliable on this RouterOS version.
+// client's address, keys or AllowedIPs changed since the last paste.
+//
+// The interface is the one exception to "tear down, then recreate":
+// other configuration on this router (firewall rules, NAT, bridge ports,
+// ...) that references "interface=wireguard1" ties to that object's
+// internal ID, not just its name, so removing and re-adding it --even
+// under the same name-- would silently detach all of that, forcing it to
+// be reconfigured by hand. So the interface is only added if missing,
+// and otherwise left untouched entirely (no remove, no update-in-place
+// either). That still can't produce a duplicate: RouterOS rejects a
+// second interface under the same name outright. The existence check
+// itself has no else branch -- it only skips an add, never decides
+// between two actions to take -- unlike the :if/:len idiom ApplySync's
+// doc comment below records as unreliable on this RouterOS version for
+// deciding add-vs-update.
+//
+// Address/peer/route have no such external-reference concern, so they're
+// tagged with the same "mtwg-client:<id>" comment and torn down by that
+// tag before being recreated -- simpler, and correct even when a field
+// changed, which a plain "add only if missing" can't guarantee for them.
 func BuildClientRouterSetupCommands(iface model.WgInterface, c model.Client) string {
 	const ifName = "wireguard1"
 	tag := "mtwg-client:" + c.ID
 	var script strings.Builder
 
-	// Tear down anything this command created for this client before, in
-	// dependency order (route/peer depend on the interface and address).
-	fmt.Fprintf(&script, "/ip route remove [find where comment=%s]\n", quote(tag))
-	fmt.Fprintf(&script, "/interface wireguard peers remove [find where comment=%s]\n", quote(tag))
-	fmt.Fprintf(&script, "/ip address remove [find where comment=%s]\n", quote(tag))
-	fmt.Fprintf(&script, "/interface wireguard remove [find where comment=%s]\n", quote(tag))
-
 	ifArgs := fmt.Sprintf("name=%s private-key=%s comment=%s", quote(ifName), quote(c.PrivateKey), quote(tag))
 	if iface.MTU > 0 {
 		ifArgs += fmt.Sprintf(" mtu=%d", iface.MTU)
 	}
-	fmt.Fprintf(&script, "/interface wireguard add %s\n", ifArgs)
+	fmt.Fprintf(&script, ":if ([:len [/interface wireguard find where name=%s]] = 0) do={\n  /interface wireguard add %s\n}\n", quote(ifName), ifArgs)
+
+	fmt.Fprintf(&script, "/ip route remove [find where comment=%s]\n", quote(tag))
+	fmt.Fprintf(&script, "/interface wireguard peers remove [find where comment=%s]\n", quote(tag))
+	fmt.Fprintf(&script, "/ip address remove [find where comment=%s]\n", quote(tag))
 
 	for _, addr := range c.AllocatedIPs {
 		fmt.Fprintf(&script, "/ip address add interface=%s address=%s comment=%s\n", quote(ifName), quote(addr), quote(tag))

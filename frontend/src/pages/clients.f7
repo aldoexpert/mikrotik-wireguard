@@ -118,6 +118,7 @@
               <li><a href="#" class="item-link item-content sheet-close" @click="${(e) => { e.preventDefault(); downloadConfig(); }}"><div class="item-inner"><div class="item-title">Download .conf</div></div></a></li>
               <li><a href="#" class="item-link item-content sheet-close" @click="${(e) => { e.preventDefault(); promptEmail(); }}"><div class="item-inner"><div class="item-title">Send via Email</div></div></a></li>
               <li><a href="#" class="item-link item-content sheet-close" @click="${(e) => { e.preventDefault(); sendTelegram(); }}"><div class="item-inner"><div class="item-title">Send via Telegram</div></div></a></li>
+              <li><a href="#" class="item-link item-content sheet-close" @click="${(e) => { e.preventDefault(); copyMikrotikCommand(); }}"><div class="item-inner"><div class="item-title">Copy Mikrotik Command</div></div></a></li>
             </ul>
           </div>
         </div>
@@ -250,6 +251,42 @@ export default (props, { $f7, $update, $on }) => {
       notifySuccess($f7, 'Sent via Telegram');
     } catch (err) {
       notifyError($f7, errorMessage(err, ApiError, 'Failed to send via Telegram'));
+    }
+  };
+
+  // navigator.clipboard needs a secure context (HTTPS or localhost), which
+  // this app's plain-HTTP production deployment isn't, so fall back to the
+  // classic execCommand('copy') via a temporary textarea, and as a last
+  // resort just show the command for the operator to copy by hand.
+  const copyToClipboard = async (text) => {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    const ok = document.execCommand('copy');
+    textarea.remove();
+    return ok;
+  };
+
+  const copyMikrotikCommand = async () => {
+    if (!activeClient) return;
+    try {
+      const res = await api.get(`/wireguard/clients/mikrotikcommand/${activeClient.id}`);
+      const command = res.data.command || '';
+      if (await copyToClipboard(command)) {
+        notifySuccess($f7, 'Mikrotik command copied to clipboard');
+      } else {
+        $f7.dialog.alert(command, 'Copy this Mikrotik command manually');
+      }
+    } catch (err) {
+      notifyError($f7, errorMessage(err, ApiError, 'Failed to get the Mikrotik command'));
     }
   };
 

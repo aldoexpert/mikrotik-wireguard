@@ -27,6 +27,7 @@ import (
 //	POST /wireguard/clients/delete
 //	POST /wireguard/clients/setstatus
 //	GET  /wireguard/clients/download/<id>
+//	GET  /wireguard/clients/mikrotikcommand/<id>
 //	POST /wireguard/clients/email
 //	POST /wireguard/clients/telegram
 //	GET  /wireguard/clients/suggestips?interface_id=<id>
@@ -57,6 +58,7 @@ func Register(registry *core.Registry, cfg *config.App, db store.IStore, mailer 
 	registry.RegisterMethod("wireguard", "clients", "delete", requireAuth(clients.Delete))
 	registry.RegisterMethod("wireguard", "clients", "setstatus", requireAuth(clients.SetStatus))
 	registry.RegisterMethod("wireguard", "clients", "download", requireAuth(clients.Download))
+	registry.RegisterMethod("wireguard", "clients", "mikrotikcommand", requireAuth(clients.MikrotikCommand))
 	registry.RegisterMethod("wireguard", "clients", "email", requireAuth(clients.Email))
 	registry.RegisterMethod("wireguard", "clients", "telegram", requireAuth(clients.Telegram))
 	registry.RegisterMethod("wireguard", "clients", "suggestips", requireAuth(clients.SuggestIPs))

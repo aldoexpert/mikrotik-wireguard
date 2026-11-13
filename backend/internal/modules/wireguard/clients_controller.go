@@ -17,6 +17,7 @@ import (
 	"github.com/aldoexpert/mikrotik-wireguard/internal/core"
 	"github.com/aldoexpert/mikrotik-wireguard/internal/library"
 	"github.com/aldoexpert/mikrotik-wireguard/internal/library/emailer"
+	"github.com/aldoexpert/mikrotik-wireguard/internal/library/mikrotik"
 	"github.com/aldoexpert/mikrotik-wireguard/internal/library/store"
 	"github.com/aldoexpert/mikrotik-wireguard/internal/library/telegram"
 	"github.com/aldoexpert/mikrotik-wireguard/internal/model"
@@ -428,6 +429,40 @@ func (c *ClientsController) Download(w http.ResponseWriter, r *http.Request, par
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s.conf", clientData.Client.Name))
 	w.Header().Set("Content-Type", "text/conf")
 	w.Write([]byte(conf))
+}
+
+// MikrotikCommand returns the RouterOS terminal command that manually adds
+// this client as a WireGuard peer, for an operator to copy-paste on routers
+// that aren't reachable via the SSH "Apply Configuration" integration.
+func (c *ClientsController) MikrotikCommand(w http.ResponseWriter, r *http.Request, params []string) {
+	if len(params) < 1 {
+		core.BadRequest(w, "Client ID is required")
+		return
+	}
+	clientID := params[0]
+	if _, err := xid.FromString(clientID); err != nil {
+		core.BadRequest(w, "Invalid client ID")
+		return
+	}
+
+	clientData, err := c.db.GetClientByID(clientID, model.QRCodeSettings{Enabled: false})
+	if err != nil {
+		core.NotFound(w, "Client not found")
+		return
+	}
+	if clientData.Client.PublicKey == "" {
+		core.BadRequest(w, "This client has no public key")
+		return
+	}
+
+	iface, err := c.db.GetInterfaceByID(clientData.Client.InterfaceID)
+	if err != nil {
+		core.InternalError(w, err.Error(), err)
+		return
+	}
+
+	command := mikrotik.BuildPeerAddCommand(iface, *clientData.Client)
+	core.Success(w, "", map[string]string{"command": command})
 }
 
 type emailPayload struct {

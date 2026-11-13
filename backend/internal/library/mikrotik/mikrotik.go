@@ -273,6 +273,41 @@ func quote(s string) string {
 	return "\"" + s + "\""
 }
 
+// peerAddArgs builds the `name=... interface=... ...` argument string for
+// one client's peer, shared by ApplySync (over SSH) and BuildPeerAddCommand
+// (for manual copy-paste) so both stay in sync on the RouterOS field set.
+func peerAddArgs(ifName string, iface model.WgInterface, c model.Client) string {
+	var allowed []string
+	if c.IsUpstream() {
+		allowed = append(append([]string{}, c.AllowedIPs...), c.ExtraAllowedIPs...)
+	} else {
+		allowed = append(append([]string{}, c.AllocatedIPs...), c.ExtraAllowedIPs...)
+	}
+
+	args := fmt.Sprintf("name=%s interface=%s public-key=%s allowed-address=%s comment=%s",
+		quote(c.Name), quote(ifName), quote(c.PublicKey), quote(strings.Join(allowed, ",")), quote(peerTag(c.ID)))
+	if c.PresharedKey != "" {
+		args += " preshared-key=" + quote(c.PresharedKey)
+	}
+	if iface.PersistentKeepalive > 0 {
+		args += fmt.Sprintf(" persistent-keepalive=%ds", iface.PersistentKeepalive)
+	}
+	if c.IsUpstream() {
+		host, port := splitEndpoint(c.Endpoint)
+		args += fmt.Sprintf(" endpoint-address=%s endpoint-port=%d", quote(host), port)
+	}
+	return args
+}
+
+// BuildPeerAddCommand returns the single RouterOS command that manually
+// creates this client's peer, for an operator to copy-paste into the
+// router's terminal instead of relying on the SSH Apply Configuration sync.
+// It's tagged with the same "mtwg:<client-id>" comment ApplySync uses, so a
+// later SSH sync recognizes and updates this peer rather than duplicating it.
+func BuildPeerAddCommand(iface model.WgInterface, c model.Client) string {
+	return "/interface wireguard peers add " + peerAddArgs(iface.WgName, iface, c)
+}
+
 // ApplySync pushes one WireGuard interface and every enabled client
 // (as a tagged peer) scoped to it to the Mikrotik device. clients must
 // already be filtered to iface -- callers apply once per interface. It is
@@ -368,26 +403,7 @@ func ApplySync(settings model.MikrotikSettings, iface model.WgInterface, clients
 		tag := peerTag(c.ID)
 		desiredTags[tag] = true
 
-		var allowed []string
-		if c.IsUpstream() {
-			allowed = append(append([]string{}, c.AllowedIPs...), c.ExtraAllowedIPs...)
-		} else {
-			allowed = append(append([]string{}, c.AllocatedIPs...), c.ExtraAllowedIPs...)
-		}
-
-		args := fmt.Sprintf("name=%s interface=%s public-key=%s allowed-address=%s comment=%s",
-			quote(c.Name), quote(ifName), quote(c.PublicKey), quote(strings.Join(allowed, ",")), quote(tag))
-		if c.PresharedKey != "" {
-			args += " preshared-key=" + quote(c.PresharedKey)
-		}
-		if iface.PersistentKeepalive > 0 {
-			args += fmt.Sprintf(" persistent-keepalive=%ds", iface.PersistentKeepalive)
-		}
-		if c.IsUpstream() {
-			host, port := splitEndpoint(c.Endpoint)
-			args += fmt.Sprintf(" endpoint-address=%s endpoint-port=%d", quote(host), port)
-		}
-
+		args := peerAddArgs(ifName, iface, *c)
 		if existingPeers[tag] {
 			fmt.Fprintf(&script, "/interface wireguard peers set [find where comment=%s] %s\n", quote(tag), args)
 		} else {

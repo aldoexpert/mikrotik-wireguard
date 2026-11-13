@@ -461,7 +461,7 @@ func (c *ClientsController) MikrotikCommand(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	command := mikrotik.BuildPeerAddCommand(iface, *clientData.Client)
+	command := mikrotik.BuildManualSetupCommands(iface, *clientData.Client)
 	core.Success(w, "", map[string]string{"command": command})
 }
 

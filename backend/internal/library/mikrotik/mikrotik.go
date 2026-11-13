@@ -299,13 +299,40 @@ func peerAddArgs(ifName string, iface model.WgInterface, c model.Client) string 
 	return args
 }
 
-// BuildPeerAddCommand returns the single RouterOS command that manually
-// creates this client's peer, for an operator to copy-paste into the
-// router's terminal instead of relying on the SSH Apply Configuration sync.
-// It's tagged with the same "mtwg:<client-id>" comment ApplySync uses, so a
-// later SSH sync recognizes and updates this peer rather than duplicating it.
-func BuildPeerAddCommand(iface model.WgInterface, c model.Client) string {
-	return "/interface wireguard peers add " + peerAddArgs(iface.WgName, iface, c)
+// BuildManualSetupCommands returns the RouterOS terminal commands an
+// operator can paste by hand to create this client's peer, instead of
+// relying on the SSH Apply Configuration sync. It includes the commands
+// that create the WireGuard interface and its address(es) too, since the
+// peer add alone fails with "interface not found" on a router that has
+// never run Apply Configuration or had another client's command pasted yet.
+//
+// Re-pasting this for a later client on the same interface is safe to run:
+// the interface/address lines just print a harmless "already have such
+// interface/address" error and execution continues to the next line: there
+// is no :if/else branch deciding add-vs-update here, since ApplySync's doc
+// comment above records that idiom as unreliable on this RouterOS version.
+// The peer line is tagged with the same "mtwg:<client-id>" comment ApplySync
+// uses, so a later SSH sync recognizes and updates it instead of
+// duplicating it -- re-pasting the command itself for the same client,
+// though, will error on that line ("entry already exists") since it's
+// always an add, never a set.
+func BuildManualSetupCommands(iface model.WgInterface, c model.Client) string {
+	ifName := iface.WgName
+	var script strings.Builder
+
+	ifArgs := fmt.Sprintf("name=%s private-key=%s listen-port=%d", quote(ifName), quote(iface.KeyPair.PrivateKey), iface.Config.ListenPort)
+	if iface.MTU > 0 {
+		ifArgs += fmt.Sprintf(" mtu=%d", iface.MTU)
+	}
+	fmt.Fprintf(&script, "/interface wireguard add %s\n", ifArgs)
+
+	for _, addr := range iface.Config.Addresses {
+		fmt.Fprintf(&script, "/ip address add interface=%s address=%s\n", quote(ifName), quote(addr))
+	}
+
+	fmt.Fprintf(&script, "/interface wireguard peers add %s", peerAddArgs(ifName, iface, c))
+
+	return script.String()
 }
 
 // ApplySync pushes one WireGuard interface and every enabled client

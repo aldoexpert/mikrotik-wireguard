@@ -281,9 +281,9 @@ export default (props, { $f7, $update, $on }) => {
       const res = await api.get(`/wireguard/clients/mikrotikcommand/${activeClient.id}`);
       const command = res.data.command || '';
       if (await copyToClipboard(command)) {
-        notifySuccess($f7, 'Mikrotik command copied to clipboard');
+        notifySuccess($f7, 'Mikrotik commands copied to clipboard');
       } else {
-        $f7.dialog.alert(command, 'Copy this Mikrotik command manually');
+        $f7.dialog.alert(command.replace(/\n/g, '<br>'), 'Paste these commands into the Mikrotik terminal');
       }
     } catch (err) {
       notifyError($f7, errorMessage(err, ApiError, 'Failed to get the Mikrotik command'));

@@ -274,8 +274,7 @@ func quote(s string) string {
 }
 
 // peerAddArgs builds the `name=... interface=... ...` argument string for
-// one client's peer, shared by ApplySync (over SSH) and BuildPeerAddCommand
-// (for manual copy-paste) so both stay in sync on the RouterOS field set.
+// one client's peer, as pushed to our own server by ApplySync over SSH.
 func peerAddArgs(ifName string, iface model.WgInterface, c model.Client) string {
 	var allowed []string
 	if c.IsUpstream() {
@@ -299,40 +298,69 @@ func peerAddArgs(ifName string, iface model.WgInterface, c model.Client) string 
 	return args
 }
 
-// BuildManualSetupCommands returns the RouterOS terminal commands an
-// operator can paste by hand to create this client's peer, instead of
-// relying on the SSH Apply Configuration sync. It includes the commands
-// that create the WireGuard interface and its address(es) too, since the
-// peer add alone fails with "interface not found" on a router that has
-// never run Apply Configuration or had another client's command pasted yet.
+// BuildClientRouterSetupCommands returns the RouterOS terminal commands
+// that configure a client as a WireGuard *client* on another Mikrotik
+// router (e.g. a branch/home router), instead of a phone or laptop. It's
+// the RouterOS equivalent of the wg-quick .conf library.BuildClientConfig
+// produces for those -- RouterOS has no importer for that file format, so
+// an operator pastes this into the *other* router's own terminal instead.
+// It mirrors BuildClientConfig's fields exactly: the client's own
+// [Interface] (its private key and address) and a [Peer] for our server,
+// reached at iface.EndpointAddress -- this is the inbound "allowed client"
+// direction (see Client's doc comment), the same one a phone uses, so it
+// applies whether or not this client record's own Endpoint/"Connect To"
+// field is set.
 //
-// Re-pasting this for a later client on the same interface is safe to run:
-// the interface/address lines just print a harmless "already have such
-// interface/address" error and execution continues to the next line: there
-// is no :if/else branch deciding add-vs-update here, since ApplySync's doc
-// comment above records that idiom as unreliable on this RouterOS version.
-// The peer line is tagged with the same "mtwg:<client-id>" comment ApplySync
-// uses, so a later SSH sync recognizes and updates it instead of
-// duplicating it -- re-pasting the command itself for the same client,
-// though, will error on that line ("entry already exists") since it's
-// always an add, never a set.
-func BuildManualSetupCommands(iface model.WgInterface, c model.Client) string {
-	ifName := iface.WgName
+// Re-pasting this on the other router is safe to run again: RouterOS
+// rejects a duplicate interface name or IP address outright (a harmless
+// "already have such interface/address" error, no duplicate created), and
+// the peer and routes are removed by their "mtwg-client:<id>" comment tag
+// right before being re-added, so the result is always exactly one peer
+// and one route per AllowedIPs entry -- never a duplicate. There's no
+// inline :if/:len existence check anywhere here, since ApplySync's doc
+// comment below records that idiom as unreliable on this RouterOS version.
+func BuildClientRouterSetupCommands(iface model.WgInterface, c model.Client) string {
+	const ifName = "wireguard1"
+	tag := "mtwg-client:" + c.ID
 	var script strings.Builder
 
-	ifArgs := fmt.Sprintf("name=%s private-key=%s listen-port=%d", quote(ifName), quote(iface.KeyPair.PrivateKey), iface.Config.ListenPort)
+	ifArgs := fmt.Sprintf("name=%s private-key=%s", quote(ifName), quote(c.PrivateKey))
 	if iface.MTU > 0 {
 		ifArgs += fmt.Sprintf(" mtu=%d", iface.MTU)
 	}
 	fmt.Fprintf(&script, "/interface wireguard add %s\n", ifArgs)
 
-	for _, addr := range iface.Config.Addresses {
+	for _, addr := range c.AllocatedIPs {
 		fmt.Fprintf(&script, "/ip address add interface=%s address=%s\n", quote(ifName), quote(addr))
 	}
 
-	fmt.Fprintf(&script, "/interface wireguard peers add %s", peerAddArgs(ifName, iface, c))
+	// Same host/port resolution as library.BuildClientConfig's peerEndpoint.
+	host := iface.EndpointAddress
+	port := iface.Config.ListenPort
+	if idx := strings.LastIndex(host, ":"); idx != -1 {
+		if n, err := strconv.Atoi(host[idx+1:]); err == nil {
+			host, port = host[:idx], n
+		}
+	}
 
-	return script.String()
+	allowed := append(append([]string{}, c.AllowedIPs...), c.ExtraAllowedIPs...)
+	peerArgs := fmt.Sprintf("interface=%s public-key=%s allowed-address=%s endpoint-address=%s endpoint-port=%d comment=%s",
+		quote(ifName), quote(iface.KeyPair.PublicKey), quote(strings.Join(allowed, ",")), quote(host), port, quote(tag))
+	if c.PresharedKey != "" {
+		peerArgs += " preshared-key=" + quote(c.PresharedKey)
+	}
+	if iface.PersistentKeepalive > 0 {
+		peerArgs += fmt.Sprintf(" persistent-keepalive=%ds", iface.PersistentKeepalive)
+	}
+	fmt.Fprintf(&script, "/interface wireguard peers remove [find where comment=%s]\n", quote(tag))
+	fmt.Fprintf(&script, "/interface wireguard peers add %s\n", peerArgs)
+
+	fmt.Fprintf(&script, "/ip route remove [find where comment=%s]\n", quote(tag))
+	for _, net := range allowed {
+		fmt.Fprintf(&script, "/ip route add dst-address=%s gateway=%s comment=%s\n", quote(net), quote(ifName), quote(tag))
+	}
+
+	return strings.TrimRight(script.String(), "\n")
 }
 
 // ApplySync pushes one WireGuard interface and every enabled client

@@ -118,7 +118,7 @@
               <li><a href="#" class="item-link item-content sheet-close" @click="${(e) => { e.preventDefault(); downloadConfig(); }}"><div class="item-inner"><div class="item-title">Download .conf</div></div></a></li>
               <li><a href="#" class="item-link item-content sheet-close" @click="${(e) => { e.preventDefault(); promptEmail(); }}"><div class="item-inner"><div class="item-title">Send via Email</div></div></a></li>
               <li><a href="#" class="item-link item-content sheet-close" @click="${(e) => { e.preventDefault(); sendTelegram(); }}"><div class="item-inner"><div class="item-title">Send via Telegram</div></div></a></li>
-              <li><a href="#" class="item-link item-content sheet-close" @click="${(e) => { e.preventDefault(); copyMikrotikCommand(); }}"><div class="item-inner"><div class="item-title">Copy Mikrotik Command</div></div></a></li>
+              <li><a href="#" class="item-link item-content sheet-close" @click="${(e) => { e.preventDefault(); copyMikrotikCommand(); }}"><div class="item-inner"><div class="item-title">Copy Mikrotik Client Setup Command</div></div></a></li>
             </ul>
           </div>
         </div>
@@ -275,18 +275,22 @@ export default (props, { $f7, $update, $on }) => {
     return ok;
   };
 
+  // Copies the RouterOS commands that set this client up as a WireGuard
+  // *client* on another Mikrotik router (e.g. a branch/home router dialing
+  // in to us) -- paste these into that *other* router's own terminal, not
+  // this app's configured Mikrotik Integration router.
   const copyMikrotikCommand = async () => {
     if (!activeClient) return;
     try {
       const res = await api.get(`/wireguard/clients/mikrotikcommand/${activeClient.id}`);
       const command = res.data.command || '';
       if (await copyToClipboard(command)) {
-        notifySuccess($f7, 'Mikrotik commands copied to clipboard');
+        notifySuccess($f7, 'Mikrotik client setup commands copied to clipboard');
       } else {
-        $f7.dialog.alert(command.replace(/\n/g, '<br>'), 'Paste these commands into the Mikrotik terminal');
+        $f7.dialog.alert(command.replace(/\n/g, '<br>'), 'Paste these commands into the other Mikrotik router\'s terminal');
       }
     } catch (err) {
-      notifyError($f7, errorMessage(err, ApiError, 'Failed to get the Mikrotik command'));
+      notifyError($f7, errorMessage(err, ApiError, 'Failed to get the Mikrotik client setup commands'));
     }
   };
 

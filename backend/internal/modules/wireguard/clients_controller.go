@@ -431,9 +431,10 @@ func (c *ClientsController) Download(w http.ResponseWriter, r *http.Request, par
 	w.Write([]byte(conf))
 }
 
-// MikrotikCommand returns the RouterOS terminal command that manually adds
-// this client as a WireGuard peer, for an operator to copy-paste on routers
-// that aren't reachable via the SSH "Apply Configuration" integration.
+// MikrotikCommand returns the RouterOS terminal commands that set up this
+// client as a WireGuard client on a *different* Mikrotik router (e.g. a
+// branch/home router dialing in to us), since RouterOS has no importer for
+// the wg-quick .conf format Download/Email/Telegram send to a phone/laptop.
 func (c *ClientsController) MikrotikCommand(w http.ResponseWriter, r *http.Request, params []string) {
 	if len(params) < 1 {
 		core.BadRequest(w, "Client ID is required")
@@ -461,7 +462,7 @@ func (c *ClientsController) MikrotikCommand(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	command := mikrotik.BuildManualSetupCommands(iface, *clientData.Client)
+	command := mikrotik.BuildClientRouterSetupCommands(iface, *clientData.Client)
 	core.Success(w, "", map[string]string{"command": command})
 }
 

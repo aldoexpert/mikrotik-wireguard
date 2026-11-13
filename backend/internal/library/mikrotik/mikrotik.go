@@ -311,27 +311,36 @@ func peerAddArgs(ifName string, iface model.WgInterface, c model.Client) string 
 // applies whether or not this client record's own Endpoint/"Connect To"
 // field is set.
 //
-// Re-pasting this on the other router is safe to run again: RouterOS
-// rejects a duplicate interface name or IP address outright (a harmless
-// "already have such interface/address" error, no duplicate created), and
-// the peer and routes are removed by their "mtwg-client:<id>" comment tag
-// right before being re-added, so the result is always exactly one peer
-// and one route per AllowedIPs entry -- never a duplicate. There's no
-// inline :if/:len existence check anywhere here, since ApplySync's doc
-// comment below records that idiom as unreliable on this RouterOS version.
+// Re-pasting this on the other router is always safe, even if the
+// client's address, keys or AllowedIPs changed since the last paste:
+// every resource it creates (interface, address, peer, route) is tagged
+// with the same "mtwg-client:<id>" comment and torn down by that tag
+// before being recreated, so this never depends on RouterOS treating a
+// *changed* name/address/field as a duplicate to reject -- only on an
+// identical one, which RouterOS does reject, being a no-op fallback for
+// the (harmless) case nothing changed. There's no inline :if/:len
+// existence check anywhere here, since ApplySync's doc comment below
+// records that idiom as unreliable on this RouterOS version.
 func BuildClientRouterSetupCommands(iface model.WgInterface, c model.Client) string {
 	const ifName = "wireguard1"
 	tag := "mtwg-client:" + c.ID
 	var script strings.Builder
 
-	ifArgs := fmt.Sprintf("name=%s private-key=%s", quote(ifName), quote(c.PrivateKey))
+	// Tear down anything this command created for this client before, in
+	// dependency order (route/peer depend on the interface and address).
+	fmt.Fprintf(&script, "/ip route remove [find where comment=%s]\n", quote(tag))
+	fmt.Fprintf(&script, "/interface wireguard peers remove [find where comment=%s]\n", quote(tag))
+	fmt.Fprintf(&script, "/ip address remove [find where comment=%s]\n", quote(tag))
+	fmt.Fprintf(&script, "/interface wireguard remove [find where comment=%s]\n", quote(tag))
+
+	ifArgs := fmt.Sprintf("name=%s private-key=%s comment=%s", quote(ifName), quote(c.PrivateKey), quote(tag))
 	if iface.MTU > 0 {
 		ifArgs += fmt.Sprintf(" mtu=%d", iface.MTU)
 	}
 	fmt.Fprintf(&script, "/interface wireguard add %s\n", ifArgs)
 
 	for _, addr := range c.AllocatedIPs {
-		fmt.Fprintf(&script, "/ip address add interface=%s address=%s\n", quote(ifName), quote(addr))
+		fmt.Fprintf(&script, "/ip address add interface=%s address=%s comment=%s\n", quote(ifName), quote(addr), quote(tag))
 	}
 
 	// Same host/port resolution as library.BuildClientConfig's peerEndpoint.
@@ -352,10 +361,8 @@ func BuildClientRouterSetupCommands(iface model.WgInterface, c model.Client) str
 	if iface.PersistentKeepalive > 0 {
 		peerArgs += fmt.Sprintf(" persistent-keepalive=%ds", iface.PersistentKeepalive)
 	}
-	fmt.Fprintf(&script, "/interface wireguard peers remove [find where comment=%s]\n", quote(tag))
 	fmt.Fprintf(&script, "/interface wireguard peers add %s\n", peerArgs)
 
-	fmt.Fprintf(&script, "/ip route remove [find where comment=%s]\n", quote(tag))
 	for _, net := range allowed {
 		fmt.Fprintf(&script, "/ip route add dst-address=%s gateway=%s comment=%s\n", quote(net), quote(ifName), quote(tag))
 	}

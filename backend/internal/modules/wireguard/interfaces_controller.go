@@ -320,7 +320,7 @@ func (c *InterfacesController) ApplyConfig(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	core.Success(w, "Interface configuration applied successfully", nil)
+	core.Success(w, applySuccessMessage(mikrotikSettings), map[string]bool{"synced": mikrotikSettings.Enabled})
 }
 
 // ApplyAll applies every interface in one call.
@@ -353,5 +353,17 @@ func (c *InterfacesController) ApplyAll(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	core.Success(w, "All interfaces applied successfully", nil)
+	core.Success(w, applySuccessMessage(mikrotikSettings), map[string]bool{"synced": mikrotikSettings.Enabled})
+}
+
+// applySuccessMessage makes it explicit whether applying actually reached
+// the Mikrotik device or only wrote this app's own local config -- the
+// two look identical from the caller's side (both return success), and a
+// user who hasn't enabled the Mikrotik integration could easily mistake
+// the latter for the former.
+func applySuccessMessage(mikrotikSettings model.MikrotikSettings) string {
+	if mikrotikSettings.Enabled {
+		return "Configuration applied and synced to the Mikrotik device successfully"
+	}
+	return "Configuration applied locally only -- Mikrotik Integration is disabled, so the router was not updated. Enable it under WireGuard → Mikrotik Integration if this should also push to a router over SSH."
 }

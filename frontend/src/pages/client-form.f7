@@ -17,7 +17,7 @@
                   <div class="item-inner">
                     <div class="item-title item-label">Interface</div>
                     <div class="item-input-wrap">
-                      <select required value="${form.interface_id}" @change="${(e) => { form.interface_id = e.target.value; $update(); }}">
+                      <select required value="${form.interface_id}" @change="${(e) => { form.interface_id = e.target.value; $update(); if (!isEdit) suggestIP(); }}">
                         <option value="" disabled>Select an interface...</option>
                         ${interfaces.map((iface) => $h`<option value="${iface.id}" selected=${form.interface_id === iface.id}>${iface.name} (${iface.wg_name})</option>`)}
                       </select>
@@ -83,10 +83,24 @@
                 <div class="item-content item-input">
                   <div class="item-inner">
                     <div class="item-title item-label">${form.role === 'upstream' ? 'Networks routed through this tunnel (CIDR, comma separated)' : 'Allowed IPs (CIDR, comma separated)'}</div>
-                    <div class="item-input-wrap"><input type="text" value="${form.allowed_ips}" @input="${(e) => { form.allowed_ips = e.target.value; }}" /></div>
+                    <div class="item-input-wrap"><input type="text" value="${form.allowed_ips}" @input="${(e) => { form.allowed_ips = e.target.value; $update(); }}" /></div>
                   </div>
                 </div>
               </li>
+              ${form.allowed_ips !== '0.0.0.0/0' ? $h`
+                <li>
+                  <div class="item-content">
+                    <div class="item-inner">
+                      <p class="mtwg-muted" style="margin:0;">
+                        This also acts as a routing filter on the client: traffic to a subnet
+                        not listed here bypasses the tunnel entirely. If the client needs to
+                        reach a private network through this tunnel, that subnet must be
+                        included here too (e.g. "10.252.0.0/24, 10.10.0.0/24").
+                      </p>
+                    </div>
+                  </div>
+                </li>
+              ` : ''}
               <li>
                 <div class="item-content item-input">
                   <div class="item-inner">
@@ -214,6 +228,11 @@ export default (props, { $f7, $update }) => {
         form.extra_allowed_ips = toCSV(res.data.extra_allowed_ips);
         form.use_server_dns = !!res.data.use_server_dns;
         form.enabled = !!res.data.enable_after_creation;
+        // Auto-fill the IP suggestion instead of making the user click
+        // "Suggest IP" by hand -- only possible here when there's exactly
+        // one interface to default to; with several, the @change handler
+        // on the interface select below does the same once one is picked.
+        if (form.interface_id) await suggestIP();
       }
     } catch (err) {
       notifyError($f7, errorMessage(err, ApiError, 'Failed to load client data'));

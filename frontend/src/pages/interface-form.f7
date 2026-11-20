@@ -81,7 +81,7 @@
                 <div class="item-content item-input">
                   <div class="item-inner">
                     <div class="item-title item-label">PostUp</div>
-                    <div class="item-input-wrap"><input type="text" value="${form.post_up}" @input="${(e) => { form.post_up = e.target.value; }}" /></div>
+                    <div class="item-input-wrap"><input type="text" value="${form.post_up}" @input="${(e) => { form.post_up = e.target.value; $update(); }}" /></div>
                   </div>
                 </div>
               </li>
@@ -89,7 +89,7 @@
                 <div class="item-content item-input">
                   <div class="item-inner">
                     <div class="item-title item-label">PreDown</div>
-                    <div class="item-input-wrap"><input type="text" value="${form.pre_down}" @input="${(e) => { form.pre_down = e.target.value; }}" /></div>
+                    <div class="item-input-wrap"><input type="text" value="${form.pre_down}" @input="${(e) => { form.pre_down = e.target.value; $update(); }}" /></div>
                   </div>
                 </div>
               </li>
@@ -101,6 +101,21 @@
                   </div>
                 </div>
               </li>
+              ${dockerUserWarning() ? $h`
+                <li>
+                  <div class="item-content">
+                    <div class="item-inner">
+                      <div class="item-title" style="color:var(--f7-color-orange);">
+                        ⚠ Remove the DOCKER-USER rule(s) from PostUp/PreDown. If wg-quick starts
+                        before Docker on boot (no ordering guarantee between the two services),
+                        that chain doesn't exist yet and the whole service fails to start. Plain
+                        FORWARD/MASQUERADE rules (without DOCKER-USER) work the same without that
+                        race.
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              ` : ''}
               <li>
                 <div class="item-content item-input">
                   <div class="item-inner">
@@ -139,11 +154,19 @@
 </template>
 <script>
 import api, { ApiError } from '../js/api.js';
-import { notifySuccess, notifyError, errorMessage } from '../js/notify.js';
+import { notifySuccess, notifyWarning, notifyError, errorMessage } from '../js/notify.js';
 
 export default (props, { $f7, $update }) => {
   const id = props.id || null;
   const isEdit = !!id;
+
+  // DOCKER-USER rules in PostUp/PreDown race with wg-quick@<ifName>.service
+  // at boot: that chain is created by the Docker daemon, which has no
+  // ordering guarantee relative to wg-quick, so referencing it before
+  // Docker starts makes the whole service fail. Plain FORWARD/MASQUERADE
+  // rules work without it. Only matters if you run a local wg0 interface
+  // (network_mode: host) on a host that also runs Docker containers.
+  const dockerUserWarning = () => /DOCKER-USER/i.test(form.post_up) || /DOCKER-USER/i.test(form.pre_down);
 
   let loading = true;
   let saving = false;
@@ -255,8 +278,13 @@ export default (props, { $f7, $update }) => {
     applying = true;
     $update();
     try {
-      await api.post('/wireguard/interfaces/applyconfig', { id });
-      notifySuccess($f7, 'Interface configuration applied successfully.');
+      const res = await api.post('/wireguard/interfaces/applyconfig', { id });
+      const text = res.message || 'Interface configuration applied successfully.';
+      if (res.data && res.data.synced === false) {
+        notifyWarning($f7, text);
+      } else {
+        notifySuccess($f7, text);
+      }
     } catch (err) {
       notifyError($f7, errorMessage(err, ApiError, 'Failed to apply the configuration'));
     } finally {

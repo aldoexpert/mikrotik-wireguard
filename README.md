@@ -25,7 +25,7 @@
 6. [Roadmap](#roadmap)
 7. [Mikrotik Integration](#mikrotik-integration)
 
----
+--- 
 
 ## Installation (Docker)
 
@@ -41,12 +41,19 @@
 
 ### Installation Steps
 
-**1. Clone the repository** *(only needed to get `docker-compose.yaml` and `.env.example`)*
+**1. Get `docker-compose.yaml` and `.env.example`**
+
+The image is built by CI and published to GHCR, so you don't need the
+source code at all -- just these two files:
 
 ```bash
-git clone https://github.com/aldoexpert/mikrotik-wireguard.git
-cd mikrotik-wireguard
+mkdir mikrotik-wireguard && cd mikrotik-wireguard
+curl -fsSLO https://raw.githubusercontent.com/aldoexpert/mikrotik-wireguard/main/docker-compose.yaml
+curl -fsSLO https://raw.githubusercontent.com/aldoexpert/mikrotik-wireguard/main/.env.example
 ```
+
+(Or `git clone https://github.com/aldoexpert/mikrotik-wireguard.git` if you
+want the full source too.)
 
 **2. Create the config file**
 

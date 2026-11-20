@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"text/template"
@@ -121,6 +122,15 @@ func WriteWireGuardServerConfig(wgConfTemplate string, iface model.WgInterface, 
 	t, err := template.New("wg_config").Parse(tmplContent)
 	if err != nil {
 		return err
+	}
+
+	// /etc/wireguard (or wherever ConfigFilePath points) may not exist yet
+	// -- e.g. a fresh server that never had wireguard-tools' package
+	// postinst create it, or a custom path the operator hasn't made.
+	if dir := filepath.Dir(iface.ConfigFilePath); dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0700); err != nil {
+			return err
+		}
 	}
 
 	f, err := os.Create(iface.ConfigFilePath)

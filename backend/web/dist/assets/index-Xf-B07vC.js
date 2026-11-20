@@ -220,7 +220,7 @@ var e=Object.defineProperty,t=(t,n)=>{let r={};for(var i in t)e(r,i,{get:t[i],en
       <div class="area-chart-tooltip-label">${d}</div>
       <div class="area-chart-tooltip-total">${f}</div>
       ${p}
-    `}setTooltip(){let e=this,{app:t,el:n,svgEl:r,hiddenDatasets:i,currentIndex:a,params:{tooltip:o,datasets:s}}=e;o&&(s.filter((e,t)=>!i.includes(t)).length>0?a!==null&&!e.f7Tooltip?(e.f7Tooltip=t.tooltip.create({trigger:`manual`,containerEl:n,targetEl:r.querySelector(`line[data-index="${a}"]`),text:e.formatTooltip(),cssClass:`area-chart-tooltip`}),e.f7Tooltip&&e.f7Tooltip.show&&e.f7Tooltip.show()):e.f7Tooltip&&e.f7Tooltip.hide&&e.f7Tooltip.show&&(a===null?e.f7Tooltip.hide():(e.f7Tooltip.setText(e.formatTooltip()),e.f7Tooltip.setTargetEl(r.querySelector(`line[data-index="${a}"]`)),e.f7Tooltip.show())):e.f7Tooltip&&e.f7Tooltip.hide&&e.f7Tooltip.hide())}setCurrentIndex(e){e!==this.currentIndex&&(this.currentIndex=e,this.$el.trigger(`areachart:select`,{index:e}),this.emit(`local::select areaChartSelect`,this,e),this.$svgEl.find(`line`).removeClass(`area-chart-current-line`),this.$svgEl.find(`line[data-index="${e}"]`).addClass(`area-chart-current-line`),this.setTooltip())}onLegendClick(e){let t=parseInt(I(e.target).closest(`.area-chart-legend-item`).attr(`data-index`),10);this.toggleDataset(t)}onMouseEnter(){this.calcLinesOffsets()}onMouseMove(e){let t=this;t.linesOffsets||t.calcLinesOffsets();let n=e.pageX;n===void 0&&(n=0);let r=t.linesOffsets.map(e=>Math.abs(n-e)),i=Math.min(...r),a=r.indexOf(i);t.setCurrentIndex(a)}onMouseLeave(){this.setCurrentIndex(null)}attachEvents(){let{svgEl:e,$el:t}=this;e&&(e.addEventListener(`mouseenter`,this.onMouseEnter),e.addEventListener(`mousemove`,this.onMouseMove),e.addEventListener(`mouseleave`,this.onMouseLeave),t.on(`click`,`.area-chart-legend-item`,this.onLegendClick))}detachEvents(){let{svgEl:e,$el:t}=this;e&&(e.removeEventListener(`mouseenter`,this.onMouseEnter),e.removeEventListener(`mousemove`,this.onMouseMove),e.removeEventListener(`mouseleave`,this.onMouseLeave),t.off(`click`,`.area-chart-legend-item`,this.onLegendClick))}render(){let e=this,{lineChart:t,toggleDatasets:n,width:r,height:i,axis:a,axisLabels:o,legend:s,datasets:c}=e.params,l=e.getChartData(),u=e.getVerticalLines(),d=e.getVisibleLabels(),f=n?`button`:`span`;return Y(`div`,null,Y(`svg`,{xmlns:`http://www.w3.org/2000/svg`,width:r,height:i,viewBox:`0 0 ${r} ${i}`,preserveAspectRatio:`none`},l.map(e=>t?Y(`path`,{stroke:e.color,"fill-rule":`evenodd`,d:e.points}):Y(`polygon`,{fill:e.color,"fill-rule":`evenodd`,points:e.points})),u.map((e,t)=>Y(`line`,{"data-index":t,fill:`#000`,x1:e,y1:0,x2:e,y2:i}))),a&&Y(`div`,{class:`area-chart-axis`},o.map(t=>Y(`span`,null,d.includes(t)&&Y(`span`,null,e.formatAxisLabel(t))))),s&&Y(`div`,{class:`area-chart-legend`},c.map((t,r)=>Y(f,{"data-index":r,class:`area-chart-legend-item ${n?`area-chart-legend-button`:``}`,_type:n?`button`:void 0},Y(`span`,{style:`background-color: ${t.color}`}),e.formatLegendLabel(t.label)))))}update(e={},t=!1){let n=this,{params:r}=n;if(Object.keys(e).forEach(t=>{e[t]!==void 0&&(r[t]=e[t])}),n.$svgEl.length===0)return n;n.detachEvents(),n.$svgEl.remove(),t||(n.$axisEl.remove(),n.$legendEl.remove());let i=I(n.render()),a=i.find(`svg`);if(J(n,{svgEl:a&&a[0],$svgEl:a}),!t){let e=i.find(`.area-chart-axis`),t=i.find(`.area-chart-legend`);J(n,{$axisEl:e,$legendEl:t}),n.$el.append(e),n.$el.append(t)}return n.$el.prepend(a),n.attachEvents(),n}init(){let e=this,t=I(e.render()),n=t.find(`svg`),r=t.find(`.area-chart-axis`),i=t.find(`.area-chart-legend`);return J(e,{svgEl:n&&n[0],$svgEl:n,$axisEl:r,$legendEl:i}),e.$el.append(n),e.$el.append(r),e.$el.append(i),e.attachEvents(),e}destroy(){let e=this;e.$el&&!e.destroyed&&(e.$el.trigger(`piechart:beforedestroy`),e.emit(`local::beforeDestroy areaChartBeforeDestroy`,e),e.detachEvents(),e.$svgEl.remove(),e.$axisEl.remove(),e.$legendEl.remove(),e.f7Tooltip&&e.f7Tooltip.destroy&&e.f7Tooltip.destroy(),delete e.$el[0].f7AreaChart,In(e),e.destroyed=!0)}},kd={name:`areaChart`,params:{areaChart:{el:null,lineChart:!1,datasets:[],axis:!1,axisLabels:[],tooltip:!1,legend:!1,toggleDatasets:!1,width:640,height:320,maxAxisLabels:8,formatAxisLabel:null,formatLegendLabel:null,formatTooltip:null,formatTooltipAxisLabel:null,formatTooltipTotal:null,formatTooltipDataset:null}},create(){let e=this;e.areaChart=pr({defaultSelector:`.area-chart`,constructor:Od,app:e,domProp:`f7AreaChart`}),e.areaChart.update=function(t,n){if(I(t).length===0)return;let r=e.areaChart.get(t);if(r)return r.update(n),r}}},Ad={};ei.use([oi]),_r.use([vr,yr,br,xr,Cr,ai,ti,Pa,Na,Ia,Ra,Va,Ua,Ga,$a,eo,no,uo,io,po,ho,_o,yo,xo,Co,To,Do,ko,jo,No,Fo,Io,Ro,Bo,Vo,Uo,qo,Yo,Xo,ns,is,as,os,cs,us,fs,_s,vs,bs,Cs,Ts,Ds,ks,js,Ns,Is,Rs,qu,Yu,Zu,$u,td,rd,id,bd,Sd,Td,Dd,kd,{name:`breadrumbs`,create(){tr(this,{breadrumbs:Ad})}},{name:`typography`}]);var jd=_r,Md=`mtwg.session`;function Nd(){try{let e=localStorage.getItem(Md);return e?JSON.parse(e):null}catch{return null}}function Pd(e){try{e?localStorage.setItem(Md,JSON.stringify(e)):localStorage.removeItem(Md)}catch{}}var Fd=La({state:{session:Nd()},getters:{session({state:e}){return e.session},isLoggedIn({state:e}){return!!(e.session&&e.session.token)},isAdmin({state:e}){return!!(e.session&&e.session.admin)},token({state:e}){return e.session?e.session.token:null}},actions:{setSession({state:e},t){e.session=t,Pd(t)},clearSession({state:e}){e.session=null,Pd(null)}}}),Id={apiBaseUrl:``,appName:`Mikrotik WireGuard Manager`},Q=class extends Error{constructor(e,t){super(e),this.name=`ApiError`,this.status=t}};function Ld(e,t){let n=Id.apiBaseUrl?Id.apiBaseUrl.replace(/\/?$/,`/`):window.location.origin+`/`,r=new URL(e.replace(/^\//,``),n);return t&&Object.entries(t).forEach(([e,t])=>{t!=null&&t!==``&&r.searchParams.set(e,t)}),r.toString()}async function Rd(e,{method:t=`GET`,body:n,query:r}={}){let i={},a=Fd.getters.token.value;a&&(i.Authorization=`Bearer ${a}`),n!==void 0&&(i[`Content-Type`]=`application/json`);let o;try{o=await fetch(Ld(e,r),{method:t,headers:i,body:n===void 0?void 0:JSON.stringify(n)})}catch{throw new Q(`Could not connect to the server`,0)}if(o.status===401&&(Fd.dispatch(`clearSession`),window.location.pathname.startsWith(`/login`)||(window.location.href=`/login/`)),!(o.headers.get(`Content-Type`)||``).includes(`application/json`)){if(!o.ok)throw new Q(`HTTP ${o.status}`,o.status);return{response:o}}let s=await o.json();if(!s.status)throw new Q(s.message||`Terjadi kesalahan`,o.status);return s}var $={get:(e,t)=>Rd(e,{method:`GET`,query:t}),post:(e,t)=>Rd(e,{method:`POST`,body:t}),async download(e,t){let n=Fd.getters.token.value,r=await fetch(Ld(e),{headers:n?{Authorization:`Bearer ${n}`}:{}});if(!r.ok)throw new Q(`HTTP ${r.status}`,r.status);let i=await r.blob(),a=URL.createObjectURL(i),o=document.createElement(`a`);o.href=a,o.download=t,document.body.appendChild(o),o.click(),o.remove(),URL.revokeObjectURL(a)}};function zd(e,{icon:t,title:n,text:r,color:i}){e.notification.create({icon:`<i class="icon f7-icons" style="color: var(${i})">${t}</i>`,title:n,text:r,closeButton:!0,closeTimeout:4e3}).open()}function Bd(e,t,n=`Success`){zd(e,{icon:`checkmark_alt_circle_fill`,title:n,text:t,color:`--f7-color-green, #4cd964`})}function Vd(e,t,n=`Error`){zd(e,{icon:`exclamationmark_triangle_fill`,title:n,text:t,color:`--f7-color-red, #ff3b30`})}function Hd(e,t,n){return e instanceof t?e.message:n}function Ud(e,{$f7:t,$update:n}){let r=``,i=``,a=!1,o=!1,s=async e=>{e.preventDefault(),o=!0,n();try{let e=await $.post(`/auth/session/login`,{username:r,password:i,remember_me:a});t.store.dispatch(`setSession`,e.data),t.views.main.router.navigate(`/`,{reloadAll:!0})}catch(e){Vd(t,Hd(e,Q,`Login failed`))}finally{o=!1,n()}};return function(e){e.$;var t=e.$h;return e.$root,e.$f7,e.$f7route,e.$f7router,e.$theme,e.$update,e.$store,t`
+    `}setTooltip(){let e=this,{app:t,el:n,svgEl:r,hiddenDatasets:i,currentIndex:a,params:{tooltip:o,datasets:s}}=e;o&&(s.filter((e,t)=>!i.includes(t)).length>0?a!==null&&!e.f7Tooltip?(e.f7Tooltip=t.tooltip.create({trigger:`manual`,containerEl:n,targetEl:r.querySelector(`line[data-index="${a}"]`),text:e.formatTooltip(),cssClass:`area-chart-tooltip`}),e.f7Tooltip&&e.f7Tooltip.show&&e.f7Tooltip.show()):e.f7Tooltip&&e.f7Tooltip.hide&&e.f7Tooltip.show&&(a===null?e.f7Tooltip.hide():(e.f7Tooltip.setText(e.formatTooltip()),e.f7Tooltip.setTargetEl(r.querySelector(`line[data-index="${a}"]`)),e.f7Tooltip.show())):e.f7Tooltip&&e.f7Tooltip.hide&&e.f7Tooltip.hide())}setCurrentIndex(e){e!==this.currentIndex&&(this.currentIndex=e,this.$el.trigger(`areachart:select`,{index:e}),this.emit(`local::select areaChartSelect`,this,e),this.$svgEl.find(`line`).removeClass(`area-chart-current-line`),this.$svgEl.find(`line[data-index="${e}"]`).addClass(`area-chart-current-line`),this.setTooltip())}onLegendClick(e){let t=parseInt(I(e.target).closest(`.area-chart-legend-item`).attr(`data-index`),10);this.toggleDataset(t)}onMouseEnter(){this.calcLinesOffsets()}onMouseMove(e){let t=this;t.linesOffsets||t.calcLinesOffsets();let n=e.pageX;n===void 0&&(n=0);let r=t.linesOffsets.map(e=>Math.abs(n-e)),i=Math.min(...r),a=r.indexOf(i);t.setCurrentIndex(a)}onMouseLeave(){this.setCurrentIndex(null)}attachEvents(){let{svgEl:e,$el:t}=this;e&&(e.addEventListener(`mouseenter`,this.onMouseEnter),e.addEventListener(`mousemove`,this.onMouseMove),e.addEventListener(`mouseleave`,this.onMouseLeave),t.on(`click`,`.area-chart-legend-item`,this.onLegendClick))}detachEvents(){let{svgEl:e,$el:t}=this;e&&(e.removeEventListener(`mouseenter`,this.onMouseEnter),e.removeEventListener(`mousemove`,this.onMouseMove),e.removeEventListener(`mouseleave`,this.onMouseLeave),t.off(`click`,`.area-chart-legend-item`,this.onLegendClick))}render(){let e=this,{lineChart:t,toggleDatasets:n,width:r,height:i,axis:a,axisLabels:o,legend:s,datasets:c}=e.params,l=e.getChartData(),u=e.getVerticalLines(),d=e.getVisibleLabels(),f=n?`button`:`span`;return Y(`div`,null,Y(`svg`,{xmlns:`http://www.w3.org/2000/svg`,width:r,height:i,viewBox:`0 0 ${r} ${i}`,preserveAspectRatio:`none`},l.map(e=>t?Y(`path`,{stroke:e.color,"fill-rule":`evenodd`,d:e.points}):Y(`polygon`,{fill:e.color,"fill-rule":`evenodd`,points:e.points})),u.map((e,t)=>Y(`line`,{"data-index":t,fill:`#000`,x1:e,y1:0,x2:e,y2:i}))),a&&Y(`div`,{class:`area-chart-axis`},o.map(t=>Y(`span`,null,d.includes(t)&&Y(`span`,null,e.formatAxisLabel(t))))),s&&Y(`div`,{class:`area-chart-legend`},c.map((t,r)=>Y(f,{"data-index":r,class:`area-chart-legend-item ${n?`area-chart-legend-button`:``}`,_type:n?`button`:void 0},Y(`span`,{style:`background-color: ${t.color}`}),e.formatLegendLabel(t.label)))))}update(e={},t=!1){let n=this,{params:r}=n;if(Object.keys(e).forEach(t=>{e[t]!==void 0&&(r[t]=e[t])}),n.$svgEl.length===0)return n;n.detachEvents(),n.$svgEl.remove(),t||(n.$axisEl.remove(),n.$legendEl.remove());let i=I(n.render()),a=i.find(`svg`);if(J(n,{svgEl:a&&a[0],$svgEl:a}),!t){let e=i.find(`.area-chart-axis`),t=i.find(`.area-chart-legend`);J(n,{$axisEl:e,$legendEl:t}),n.$el.append(e),n.$el.append(t)}return n.$el.prepend(a),n.attachEvents(),n}init(){let e=this,t=I(e.render()),n=t.find(`svg`),r=t.find(`.area-chart-axis`),i=t.find(`.area-chart-legend`);return J(e,{svgEl:n&&n[0],$svgEl:n,$axisEl:r,$legendEl:i}),e.$el.append(n),e.$el.append(r),e.$el.append(i),e.attachEvents(),e}destroy(){let e=this;e.$el&&!e.destroyed&&(e.$el.trigger(`piechart:beforedestroy`),e.emit(`local::beforeDestroy areaChartBeforeDestroy`,e),e.detachEvents(),e.$svgEl.remove(),e.$axisEl.remove(),e.$legendEl.remove(),e.f7Tooltip&&e.f7Tooltip.destroy&&e.f7Tooltip.destroy(),delete e.$el[0].f7AreaChart,In(e),e.destroyed=!0)}},kd={name:`areaChart`,params:{areaChart:{el:null,lineChart:!1,datasets:[],axis:!1,axisLabels:[],tooltip:!1,legend:!1,toggleDatasets:!1,width:640,height:320,maxAxisLabels:8,formatAxisLabel:null,formatLegendLabel:null,formatTooltip:null,formatTooltipAxisLabel:null,formatTooltipTotal:null,formatTooltipDataset:null}},create(){let e=this;e.areaChart=pr({defaultSelector:`.area-chart`,constructor:Od,app:e,domProp:`f7AreaChart`}),e.areaChart.update=function(t,n){if(I(t).length===0)return;let r=e.areaChart.get(t);if(r)return r.update(n),r}}},Ad={};ei.use([oi]),_r.use([vr,yr,br,xr,Cr,ai,ti,Pa,Na,Ia,Ra,Va,Ua,Ga,$a,eo,no,uo,io,po,ho,_o,yo,xo,Co,To,Do,ko,jo,No,Fo,Io,Ro,Bo,Vo,Uo,qo,Yo,Xo,ns,is,as,os,cs,us,fs,_s,vs,bs,Cs,Ts,Ds,ks,js,Ns,Is,Rs,qu,Yu,Zu,$u,td,rd,id,bd,Sd,Td,Dd,kd,{name:`breadrumbs`,create(){tr(this,{breadrumbs:Ad})}},{name:`typography`}]);var jd=_r,Md=`mtwg.session`;function Nd(){try{let e=localStorage.getItem(Md);return e?JSON.parse(e):null}catch{return null}}function Pd(e){try{e?localStorage.setItem(Md,JSON.stringify(e)):localStorage.removeItem(Md)}catch{}}var Fd=La({state:{session:Nd()},getters:{session({state:e}){return e.session},isLoggedIn({state:e}){return!!(e.session&&e.session.token)},isAdmin({state:e}){return!!(e.session&&e.session.admin)},token({state:e}){return e.session?e.session.token:null}},actions:{setSession({state:e},t){e.session=t,Pd(t)},clearSession({state:e}){e.session=null,Pd(null)}}}),Id={apiBaseUrl:``,appName:`Mikrotik WireGuard Manager`},Q=class extends Error{constructor(e,t){super(e),this.name=`ApiError`,this.status=t}};function Ld(e,t){let n=Id.apiBaseUrl?Id.apiBaseUrl.replace(/\/?$/,`/`):window.location.origin+`/`,r=new URL(e.replace(/^\//,``),n);return t&&Object.entries(t).forEach(([e,t])=>{t!=null&&t!==``&&r.searchParams.set(e,t)}),r.toString()}async function Rd(e,{method:t=`GET`,body:n,query:r}={}){let i={},a=Fd.getters.token.value;a&&(i.Authorization=`Bearer ${a}`),n!==void 0&&(i[`Content-Type`]=`application/json`);let o;try{o=await fetch(Ld(e,r),{method:t,headers:i,body:n===void 0?void 0:JSON.stringify(n)})}catch{throw new Q(`Could not connect to the server`,0)}if(o.status===401&&(Fd.dispatch(`clearSession`),window.location.pathname.startsWith(`/login`)||(window.location.href=`/login/`)),!(o.headers.get(`Content-Type`)||``).includes(`application/json`)){if(!o.ok)throw new Q(`HTTP ${o.status}`,o.status);return{response:o}}let s=await o.json();if(!s.status)throw new Q(s.message||`Terjadi kesalahan`,o.status);return s}var $={get:(e,t)=>Rd(e,{method:`GET`,query:t}),post:(e,t)=>Rd(e,{method:`POST`,body:t}),async download(e,t){let n=Fd.getters.token.value,r=await fetch(Ld(e),{headers:n?{Authorization:`Bearer ${n}`}:{}});if(!r.ok)throw new Q(`HTTP ${r.status}`,r.status);let i=await r.blob(),a=URL.createObjectURL(i),o=document.createElement(`a`);o.href=a,o.download=t,o.className=`external`,document.body.appendChild(o),o.click(),o.remove(),URL.revokeObjectURL(a)}};function zd(e,{icon:t,title:n,text:r,color:i,closeTimeout:a=4e3}){e.notification.create({icon:`<i class="icon f7-icons" style="color: var(${i})">${t}</i>`,title:n,text:r,closeButton:!0,closeTimeout:a}).open()}function Bd(e,t,n=`Success`){zd(e,{icon:`checkmark_alt_circle_fill`,title:n,text:t,color:`--f7-color-green, #4cd964`})}function Vd(e,t,n=`Error`){zd(e,{icon:`exclamationmark_triangle_fill`,title:n,text:t,color:`--f7-color-red, #ff3b30`})}function Hd(e,t,n=`Note`){zd(e,{icon:`exclamationmark_triangle_fill`,title:n,text:t,color:`--f7-color-orange, #ff9500`,closeTimeout:8e3})}function Ud(e,t,n){return e instanceof t?e.message:n}function Wd(e,{$f7:t,$update:n}){let r=``,i=``,a=!1,o=!1,s=async e=>{e.preventDefault(),o=!0,n();try{let e=await $.post(`/auth/session/login`,{username:r,password:i,remember_me:a});t.store.dispatch(`setSession`,e.data),t.views.main.router.navigate(`/`,{reloadAll:!0})}catch(e){Vd(t,Ud(e,Q,`Login failed`))}finally{o=!1,n()}};return function(e){e.$;var t=e.$h;return e.$root,e.$f7,e.$f7route,e.$f7router,e.$theme,e.$update,e.$store,t`
   <div class="page no-navbar no-toolbar">
     <div class="page-content mtwg-login-screen">
       <div class="card mtwg-login-card">
@@ -274,7 +274,7 @@ var e=Object.defineProperty,t=(t,n)=>{let r={};for(var i in t)e(r,i,{get:t[i],en
       </div>
     </div>
   </div>
-`}}Ud.id=`0513d8a96f`;function Wd(e,{$f7:t,$update:n,$on:r}){let i=[],a=[],o=``,s=!0,c=!1,l=null,u=``,d=!1,f=async()=>{s=!0,c=!1,n();try{let[e,t]=await Promise.all([$.get(`/wireguard/clients/list`),$.get(`/wireguard/interfaces/list`)]);i=e.datas||[],a=t.datas||[]}catch(e){c=!0,Vd(t,Hd(e,Q,`Failed to load the client list`))}finally{s=!1,n()}},p=e=>{let t=a.find(t=>t.id===e);return t?`${t.name} (${t.wg_name})`:``},m=()=>o?i.filter(e=>e.client.interface_id===o):i;r(`pageAfterIn`,f);let h=async e=>{try{await $.post(`/wireguard/clients/setstatus`,{id:e.id,status:!e.enabled}),e.enabled=!e.enabled,n()}catch(e){Vd(t,Hd(e,Q,`Failed to change the client status`))}},g=e=>{t.dialog.confirm(`Delete client "${e.name}"?`,async()=>{try{await $.post(`/wireguard/clients/delete`,{id:e.id}),i=i.filter(t=>t.client.id!==e.id),n()}catch(e){Vd(t,Hd(e,Q,`Failed to delete the client`))}})},_=e=>{l=e,t.sheet.open(`.mtwg-client-actions`)},v=async()=>{if(l){u=``,d=!0,n(),t.popup.open(`.mtwg-qr-popup`);try{u=(await $.get(`/wireguard/clients/get/${l.id}`)).data.qr_code||``}catch(e){Vd(t,Hd(e,Q,`Failed to load QR code`)),t.popup.close(`.mtwg-qr-popup`)}finally{d=!1,n()}}},y=async()=>{if(l)try{await $.download(`/wireguard/clients/download/${l.id}`,`${l.name}.conf`)}catch(e){Vd(t,Hd(e,Q,`Failed to download the configuration`))}},b=()=>{l&&t.dialog.prompt(`Send the configuration to this email address:`,`Send Email`,async e=>{try{await $.post(`/wireguard/clients/email`,{id:l.id,email:e}),Bd(t,`Email sent`)}catch(e){Vd(t,Hd(e,Q,`Failed to send the email`))}},void 0,l.email||``)},x=async()=>{if(l)try{await $.post(`/wireguard/clients/telegram`,{id:l.id,userid:l.telegram_userid}),Bd(t,`Sent via Telegram`)}catch(e){Vd(t,Hd(e,Q,`Failed to send via Telegram`))}};return f(),function(e){e.$;var t=e.$h;e.$root,e.$f7,e.$f7route,e.$f7router,e.$theme;var n=e.$update;return e.$store,t`
+`}}Wd.id=`2b6c8ac846`;function Gd(e,{$f7:t,$update:n,$on:r}){let i=[],a=[],o=``,s=!0,c=!1,l=null,u=``,d=!1,f=async()=>{s=!0,c=!1,n();try{let[e,t]=await Promise.all([$.get(`/wireguard/clients/list`),$.get(`/wireguard/interfaces/list`)]);i=e.datas||[],a=t.datas||[]}catch(e){c=!0,Vd(t,Ud(e,Q,`Failed to load the client list`))}finally{s=!1,n()}},p=e=>{let t=a.find(t=>t.id===e);return t?`${t.name} (${t.wg_name})`:``},m=()=>o?i.filter(e=>e.client.interface_id===o):i;r(`pageAfterIn`,f);let h=async e=>{try{await $.post(`/wireguard/clients/setstatus`,{id:e.id,status:!e.enabled}),e.enabled=!e.enabled,n()}catch(e){Vd(t,Ud(e,Q,`Failed to change the client status`))}},g=e=>{t.dialog.confirm(`Delete client "${e.name}"?`,async()=>{try{await $.post(`/wireguard/clients/delete`,{id:e.id}),i=i.filter(t=>t.client.id!==e.id),n()}catch(e){Vd(t,Ud(e,Q,`Failed to delete the client`))}})},_=e=>{l=e,t.sheet.open(`.mtwg-client-actions`)},v=async()=>{if(l){u=``,d=!0,n(),t.popup.open(`.mtwg-qr-popup`);try{u=(await $.get(`/wireguard/clients/get/${l.id}`)).data.qr_code||``}catch(e){Vd(t,Ud(e,Q,`Failed to load QR code`)),t.popup.close(`.mtwg-qr-popup`)}finally{d=!1,n()}}},y=async()=>{if(l)try{await $.download(`/wireguard/clients/download/${l.id}`,`${l.name}.conf`)}catch(e){Vd(t,Ud(e,Q,`Failed to download the configuration`))}},b=()=>{l&&t.dialog.prompt(`Send the configuration to this email address:`,`Send Email`,async e=>{try{await $.post(`/wireguard/clients/email`,{id:l.id,email:e}),Bd(t,`Email sent`)}catch(e){Vd(t,Ud(e,Q,`Failed to send the email`))}},void 0,l.email||``)},x=async()=>{if(l)try{await $.post(`/wireguard/clients/telegram`,{id:l.id,userid:l.telegram_userid}),Bd(t,`Sent via Telegram`)}catch(e){Vd(t,Ud(e,Q,`Failed to send via Telegram`))}},S=async e=>{if(navigator.clipboard&&window.isSecureContext)return await navigator.clipboard.writeText(e),!0;let t=document.createElement(`textarea`);t.value=e,t.style.position=`fixed`,t.style.opacity=`0`,document.body.appendChild(t),t.focus(),t.select();let n=document.execCommand(`copy`);return t.remove(),n},C=async()=>{if(l)try{let e=(await $.get(`/wireguard/clients/mikrotikcommand/${l.id}`)).data.command||``;await S(e)?Bd(t,`Mikrotik client setup commands copied to clipboard`):t.dialog.alert(e.replace(/\n/g,`<br>`),`Paste these commands into the other Mikrotik router's terminal`)}catch(e){Vd(t,Ud(e,Q,`Failed to get the Mikrotik client setup commands`))}};return f(),function(e){e.$;var t=e.$h;e.$root,e.$f7,e.$f7route,e.$f7router,e.$theme;var n=e.$update;return e.$store,t`
   <div class="page" data-name="clients">
     <div class="navbar">
       <div class="navbar-bg"></div>
@@ -394,13 +394,14 @@ var e=Object.defineProperty,t=(t,n)=>{let r={};for(var i in t)e(r,i,{get:t[i],en
               <li><a href="#" class="item-link item-content sheet-close" @click="${e=>{e.preventDefault(),y()}}"><div class="item-inner"><div class="item-title">Download .conf</div></div></a></li>
               <li><a href="#" class="item-link item-content sheet-close" @click="${e=>{e.preventDefault(),b()}}"><div class="item-inner"><div class="item-title">Send via Email</div></div></a></li>
               <li><a href="#" class="item-link item-content sheet-close" @click="${e=>{e.preventDefault(),x()}}"><div class="item-inner"><div class="item-title">Send via Telegram</div></div></a></li>
+              <li><a href="#" class="item-link item-content sheet-close" @click="${e=>{e.preventDefault(),C()}}"><div class="item-inner"><div class="item-title">Copy Mikrotik Client Setup Command</div></div></a></li>
             </ul>
           </div>
         </div>
       </div>
     </div>
   </div>
-`}}Wd.id=`24862da507`;function Gd(e,{$f7:t,$update:n}){let r=e.id||null,i=!!r,a=!0,o=!1,s=[],c={interface_id:``,role:`allowed`,name:``,email:``,telegram_userid:``,allocated_ips:``,allowed_ips:`0.0.0.0/0`,extra_allowed_ips:``,endpoint:``,use_server_dns:!0,enabled:!0,additional_notes:``,public_key:``,preshared_key:``},l=e=>(e||[]).join(`, `),u=e=>(e||``).split(`,`).map(e=>e.trim()).filter(Boolean),d=async()=>{a=!0,n();try{if(s=(await $.get(`/wireguard/interfaces/list`)).datas||[],i){let e=(await $.get(`/wireguard/clients/get/${r}`)).data.client;c={interface_id:e.interface_id||``,role:e.endpoint?`upstream`:`allowed`,name:e.name||``,email:e.email||``,telegram_userid:e.telegram_userid||``,allocated_ips:l(e.allocated_ips),allowed_ips:l(e.allowed_ips),extra_allowed_ips:l(e.extra_allowed_ips),endpoint:e.endpoint||``,use_server_dns:!!e.use_server_dns,enabled:!!e.enabled,additional_notes:e.additional_notes||``,public_key:e.public_key||``,preshared_key:e.preshared_key||``}}else{s.length===1&&(c.interface_id=s[0].id);let e=await $.get(`/wireguard/clients/defaults`);c.allowed_ips=l(e.data.allowed_ips),c.extra_allowed_ips=l(e.data.extra_allowed_ips),c.use_server_dns=!!e.data.use_server_dns,c.enabled=!!e.data.enable_after_creation}}catch(e){Vd(t,Hd(e,Q,`Failed to load client data`))}finally{a=!1,n()}},f=async()=>{if(!c.interface_id)Vd(t,`Select an interface first`);else try{let e=(await $.get(`/wireguard/clients/suggestips`,{interface_id:c.interface_id})).datas||[];if(e.length===0){Vd(t,`No IP address is available`);return}let r=u(c.allocated_ips);c.allocated_ips=l([...r,...e.filter(e=>!r.includes(e))]),n()}catch(e){Vd(t,Hd(e,Q,`Failed to suggest an IP address`))}},p=async e=>{e.preventDefault(),o=!0,n();let a=c.role===`upstream`,s={id:r||void 0,interface_id:c.interface_id,name:c.name,email:a?``:c.email,telegram_userid:a?``:c.telegram_userid,allocated_ips:a?[]:u(c.allocated_ips),allowed_ips:u(c.allowed_ips),extra_allowed_ips:u(c.extra_allowed_ips),endpoint:a?c.endpoint:``,use_server_dns:!a&&c.use_server_dns,enabled:c.enabled,additional_notes:c.additional_notes,public_key:c.public_key,preshared_key:c.preshared_key};try{i?await $.post(`/wireguard/clients/update`,s):await $.post(`/wireguard/clients/create`,s),t.views.main.router.navigate(`/`,{reloadAll:!0})}catch(e){Vd(t,Hd(e,Q,`Failed to save the client`))}finally{o=!1,n()}};return d(),function(e){e.$;var t=e.$h;e.$root,e.$f7,e.$f7route,e.$f7router,e.$theme;var n=e.$update;return e.$store,t`
+`}}Gd.id=`dbd48397a2`;function Kd(e,{$f7:t,$update:n}){let r=e.id||null,i=!!r,a=!0,o=!1,s=[],c={interface_id:``,role:`allowed`,name:``,email:``,telegram_userid:``,allocated_ips:``,allowed_ips:`0.0.0.0/0`,extra_allowed_ips:``,endpoint:``,use_server_dns:!0,enabled:!0,additional_notes:``,public_key:``,preshared_key:``},l=e=>(e||[]).join(`, `),u=e=>(e||``).split(`,`).map(e=>e.trim()).filter(Boolean),d=async()=>{a=!0,n();try{if(s=(await $.get(`/wireguard/interfaces/list`)).datas||[],i){let e=(await $.get(`/wireguard/clients/get/${r}`)).data.client;c={interface_id:e.interface_id||``,role:e.endpoint?`upstream`:`allowed`,name:e.name||``,email:e.email||``,telegram_userid:e.telegram_userid||``,allocated_ips:l(e.allocated_ips),allowed_ips:l(e.allowed_ips),extra_allowed_ips:l(e.extra_allowed_ips),endpoint:e.endpoint||``,use_server_dns:!!e.use_server_dns,enabled:!!e.enabled,additional_notes:e.additional_notes||``,public_key:e.public_key||``,preshared_key:e.preshared_key||``}}else{s.length===1&&(c.interface_id=s[0].id);let e=await $.get(`/wireguard/clients/defaults`);c.allowed_ips=l(e.data.allowed_ips),c.extra_allowed_ips=l(e.data.extra_allowed_ips),c.use_server_dns=!!e.data.use_server_dns,c.enabled=!!e.data.enable_after_creation,c.interface_id&&await f()}}catch(e){Vd(t,Ud(e,Q,`Failed to load client data`))}finally{a=!1,n()}},f=async()=>{if(!c.interface_id)Vd(t,`Select an interface first`);else try{let e=(await $.get(`/wireguard/clients/suggestips`,{interface_id:c.interface_id})).datas||[];if(e.length===0){Vd(t,`No IP address is available`);return}let r=u(c.allocated_ips);c.allocated_ips=l([...r,...e.filter(e=>!r.includes(e))]),n()}catch(e){Vd(t,Ud(e,Q,`Failed to suggest an IP address`))}},p=async e=>{e.preventDefault(),o=!0,n();let a=c.role===`upstream`,s={id:r||void 0,interface_id:c.interface_id,name:c.name,email:a?``:c.email,telegram_userid:a?``:c.telegram_userid,allocated_ips:a?[]:u(c.allocated_ips),allowed_ips:u(c.allowed_ips),extra_allowed_ips:u(c.extra_allowed_ips),endpoint:a?c.endpoint:``,use_server_dns:!a&&c.use_server_dns,enabled:c.enabled,additional_notes:c.additional_notes,public_key:c.public_key,preshared_key:c.preshared_key};try{i?await $.post(`/wireguard/clients/update`,s):await $.post(`/wireguard/clients/create`,s),t.views.main.router.navigate(`/`,{reloadAll:!0})}catch(e){Vd(t,Ud(e,Q,`Failed to save the client`))}finally{o=!1,n()}};return d(),function(e){e.$;var t=e.$h;e.$root,e.$f7,e.$f7route,e.$f7router,e.$theme;var n=e.$update;return e.$store,t`
   <div class="page" data-name="client-form">
     <div class="navbar">
       <div class="navbar-bg"></div>
@@ -419,7 +420,7 @@ var e=Object.defineProperty,t=(t,n)=>{let r={};for(var i in t)e(r,i,{get:t[i],en
                   <div class="item-inner">
                     <div class="item-title item-label">Interface</div>
                     <div class="item-input-wrap">
-                      <select required value="${c.interface_id}" @change="${e=>{c.interface_id=e.target.value,n()}}">
+                      <select required value="${c.interface_id}" @change="${e=>{c.interface_id=e.target.value,n(),i||f()}}">
                         <option value="" disabled>Select an interface...</option>
                         ${s.map(e=>t`<option value="${e.id}" selected=${c.interface_id===e.id}>${e.name} (${e.wg_name})</option>`)}
                       </select>
@@ -485,10 +486,24 @@ var e=Object.defineProperty,t=(t,n)=>{let r={};for(var i in t)e(r,i,{get:t[i],en
                 <div class="item-content item-input">
                   <div class="item-inner">
                     <div class="item-title item-label">${c.role===`upstream`?`Networks routed through this tunnel (CIDR, comma separated)`:`Allowed IPs (CIDR, comma separated)`}</div>
-                    <div class="item-input-wrap"><input type="text" value="${c.allowed_ips}" @input="${e=>{c.allowed_ips=e.target.value}}" /></div>
+                    <div class="item-input-wrap"><input type="text" value="${c.allowed_ips}" @input="${e=>{c.allowed_ips=e.target.value,n()}}" /></div>
                   </div>
                 </div>
               </li>
+              ${c.allowed_ips===`0.0.0.0/0`?``:t`
+                <li>
+                  <div class="item-content">
+                    <div class="item-inner">
+                      <p class="mtwg-muted" style="margin:0;">
+                        This also acts as a routing filter on the client: traffic to a subnet
+                        not listed here bypasses the tunnel entirely. If the client needs to
+                        reach a private network through this tunnel, that subnet must be
+                        included here too (e.g. "10.252.0.0/24, 10.10.0.0/24").
+                      </p>
+                    </div>
+                  </div>
+                </li>
+              `}
               <li>
                 <div class="item-content item-input">
                   <div class="item-inner">
@@ -548,7 +563,7 @@ var e=Object.defineProperty,t=(t,n)=>{let r={};for(var i in t)e(r,i,{get:t[i],en
       `}
     </div>
   </div>
-`}}Gd.id=`75d7660e4a`;function Kd(e,{$f7:t,$update:n,$on:r}){let i=!0,a=[],o={},s=async()=>{i=!0,n();try{let[e,t]=await Promise.all([$.get(`/wireguard/interfaces/list`),$.get(`/wireguard/clients/list`)]);a=e.datas||[],o={},(t.datas||[]).forEach(e=>{let t=e.client.interface_id;o[t]=(o[t]||0)+1})}catch(e){Vd(t,Hd(e,Q,`Failed to load the interface list`))}finally{i=!1,n()}};r(`pageAfterIn`,s);let c=e=>o[e]||0,l=e=>{t.views.main.router.navigate(`/interfaces/${e.id}/edit/`)},u=e=>{t.dialog.confirm(`Delete interface "${e.name}" (${e.wg_name})?`,async()=>{try{await $.post(`/wireguard/interfaces/delete`,{id:e.id}),a=a.filter(t=>t.id!==e.id),n()}catch(e){Vd(t,Hd(e,Q,`Failed to delete the interface`))}})};return s(),function(e){e.$;var t=e.$h;return e.$root,e.$f7,e.$f7route,e.$f7router,e.$theme,e.$update,e.$store,t`
+`}}Kd.id=`219416eed9`;function qd(e,{$f7:t,$update:n,$on:r}){let i=!0,a=[],o={},s=async()=>{i=!0,n();try{let[e,t]=await Promise.all([$.get(`/wireguard/interfaces/list`),$.get(`/wireguard/clients/list`)]);a=e.datas||[],o={},(t.datas||[]).forEach(e=>{let t=e.client.interface_id;o[t]=(o[t]||0)+1})}catch(e){Vd(t,Ud(e,Q,`Failed to load the interface list`))}finally{i=!1,n()}};r(`pageAfterIn`,s);let c=e=>o[e]||0,l=e=>{t.views.main.router.navigate(`/interfaces/${e.id}/edit/`)},u=e=>{t.dialog.confirm(`Delete interface "${e.name}" (${e.wg_name})?`,async()=>{try{await $.post(`/wireguard/interfaces/delete`,{id:e.id}),a=a.filter(t=>t.id!==e.id),n()}catch(e){Vd(t,Ud(e,Q,`Failed to delete the interface`))}})};return s(),function(e){e.$;var t=e.$h;return e.$root,e.$f7,e.$f7route,e.$f7router,e.$theme,e.$update,e.$store,t`
   <div class="page" data-name="interfaces">
     <div class="navbar">
       <div class="navbar-bg"></div>
@@ -597,7 +612,7 @@ var e=Object.defineProperty,t=(t,n)=>{let r={};for(var i in t)e(r,i,{get:t[i],en
       </div>
     </div>
   </div>
-`}}Kd.id=`afb7f42d16`;function qd(e,{$f7:t,$update:n}){let r=e.id||null,i=!!r,a=!0,o=!1,s=!1,c={public_key:``},l={name:``,wg_name:``,addresses:``,listen_port:51820,endpoint_address:``,dns_servers:``,mtu:1450,persistent_keepalive:15,post_up:``,pre_down:``,post_down:``,config_file_path:``},u=e=>(e||[]).join(`, `),d=e=>(e||``).split(`,`).map(e=>e.trim()).filter(Boolean),f=async()=>{if(!i)a=!1,n();else{a=!0,n();try{let e=(await $.get(`/wireguard/interfaces/get/${r}`)).data;l={name:e.name||``,wg_name:e.wg_name||``,addresses:u(e.config.addresses),listen_port:e.config.listen_port,endpoint_address:e.endpoint_address||``,dns_servers:u(e.dns_servers),mtu:e.mtu,persistent_keepalive:e.persistent_keepalive,post_up:e.config.post_up||``,pre_down:e.config.pre_down||``,post_down:e.config.post_down||``,config_file_path:e.config_file_path||``},c={public_key:e.key_pair.public_key}}catch(e){Vd(t,Hd(e,Q,`Failed to load the interface`))}finally{a=!1,n()}}},p=async e=>{e.preventDefault(),o=!0,n();let a={id:r||void 0,name:l.name,wg_name:l.wg_name,addresses:d(l.addresses),listen_port:String(l.listen_port),endpoint_address:l.endpoint_address,dns_servers:d(l.dns_servers),mtu:String(l.mtu),persistent_keepalive:String(l.persistent_keepalive),post_up:l.post_up,pre_down:l.pre_down,post_down:l.post_down,config_file_path:l.config_file_path};try{i?await $.post(`/wireguard/interfaces/update`,a):await $.post(`/wireguard/interfaces/create`,a),t.views.main.router.navigate(`/interfaces/`,{reloadAll:!0})}catch(e){Vd(t,Hd(e,Q,`Failed to save the interface`))}finally{o=!1,n()}},m=()=>{t.dialog.confirm(`The old key pair will be replaced. Every client on this interface will need to be reconfigured. Continue?`,async()=>{try{c={public_key:(await $.post(`/wireguard/interfaces/updatekeypair`,{id:r})).data.key_pair.public_key},Bd(t,`Interface key pair updated. Don't forget to "Apply Configuration".`)}catch(e){Vd(t,Hd(e,Q,`Failed to generate a new key pair`))}finally{n()}})},h=async()=>{s=!0,n();try{await $.post(`/wireguard/interfaces/applyconfig`,{id:r}),Bd(t,`Interface configuration applied successfully.`)}catch(e){Vd(t,Hd(e,Q,`Failed to apply the configuration`))}finally{s=!1,n()}};return f(),function(e){e.$;var t=e.$h;return e.$root,e.$f7,e.$f7route,e.$f7router,e.$theme,e.$update,e.$store,t`
+`}}qd.id=`67151782ce`;function Jd(e,{$f7:t,$update:n}){let r=e.id||null,i=!!r,a=()=>/DOCKER-USER/i.test(u.post_up)||/DOCKER-USER/i.test(u.pre_down),o=!0,s=!1,c=!1,l={public_key:``},u={name:``,wg_name:``,addresses:``,listen_port:51820,endpoint_address:``,dns_servers:``,mtu:1450,persistent_keepalive:15,post_up:``,pre_down:``,post_down:``,config_file_path:``},d=e=>(e||[]).join(`, `),f=e=>(e||``).split(`,`).map(e=>e.trim()).filter(Boolean),p=async()=>{if(!i)o=!1,n();else{o=!0,n();try{let e=(await $.get(`/wireguard/interfaces/get/${r}`)).data;u={name:e.name||``,wg_name:e.wg_name||``,addresses:d(e.config.addresses),listen_port:e.config.listen_port,endpoint_address:e.endpoint_address||``,dns_servers:d(e.dns_servers),mtu:e.mtu,persistent_keepalive:e.persistent_keepalive,post_up:e.config.post_up||``,pre_down:e.config.pre_down||``,post_down:e.config.post_down||``,config_file_path:e.config_file_path||``},l={public_key:e.key_pair.public_key}}catch(e){Vd(t,Ud(e,Q,`Failed to load the interface`))}finally{o=!1,n()}}},m=async e=>{e.preventDefault(),s=!0,n();let a={id:r||void 0,name:u.name,wg_name:u.wg_name,addresses:f(u.addresses),listen_port:String(u.listen_port),endpoint_address:u.endpoint_address,dns_servers:f(u.dns_servers),mtu:String(u.mtu),persistent_keepalive:String(u.persistent_keepalive),post_up:u.post_up,pre_down:u.pre_down,post_down:u.post_down,config_file_path:u.config_file_path};try{i?await $.post(`/wireguard/interfaces/update`,a):await $.post(`/wireguard/interfaces/create`,a),t.views.main.router.navigate(`/interfaces/`,{reloadAll:!0})}catch(e){Vd(t,Ud(e,Q,`Failed to save the interface`))}finally{s=!1,n()}},h=()=>{t.dialog.confirm(`The old key pair will be replaced. Every client on this interface will need to be reconfigured. Continue?`,async()=>{try{l={public_key:(await $.post(`/wireguard/interfaces/updatekeypair`,{id:r})).data.key_pair.public_key},Bd(t,`Interface key pair updated. Don't forget to "Apply Configuration".`)}catch(e){Vd(t,Ud(e,Q,`Failed to generate a new key pair`))}finally{n()}})},g=async()=>{c=!0,n();try{let e=await $.post(`/wireguard/interfaces/applyconfig`,{id:r}),n=e.message||`Interface configuration applied successfully.`;e.data&&e.data.synced===!1?Hd(t,n):Bd(t,n)}catch(e){Vd(t,Ud(e,Q,`Failed to apply the configuration`))}finally{c=!1,n()}};return p(),function(e){e.$;var t=e.$h;e.$root,e.$f7,e.$f7route,e.$f7router,e.$theme;var n=e.$update;return e.$store,t`
   <div class="page" data-name="interface-form">
     <div class="navbar">
       <div class="navbar-bg"></div>
@@ -607,16 +622,16 @@ var e=Object.defineProperty,t=(t,n)=>{let r={};for(var i in t)e(r,i,{get:t[i],en
       </div>
     </div>
     <div class="page-content">
-      ${a?t`<div class="block text-align-center"><div class="preloader"></div></div>`:t`
+      ${o?t`<div class="block text-align-center"><div class="preloader"></div></div>`:t`
         <div class="block-title">Interface</div>
-        <form @submit="${p}">
+        <form @submit="${m}">
           <div class="list no-hairlines-md">
             <ul>
               <li>
                 <div class="item-content item-input">
                   <div class="item-inner">
                     <div class="item-title item-label">Name</div>
-                    <div class="item-input-wrap"><input type="text" required placeholder="Office VPN" value="${l.name}" @input="${e=>{l.name=e.target.value}}" /></div>
+                    <div class="item-input-wrap"><input type="text" required placeholder="Office VPN" value="${u.name}" @input="${e=>{u.name=e.target.value}}" /></div>
                   </div>
                 </div>
               </li>
@@ -624,7 +639,7 @@ var e=Object.defineProperty,t=(t,n)=>{let r={};for(var i in t)e(r,i,{get:t[i],en
                 <div class="item-content item-input">
                   <div class="item-inner">
                     <div class="item-title item-label">RouterOS/kernel interface name</div>
-                    <div class="item-input-wrap"><input type="text" required placeholder="wireguard1" value="${l.wg_name}" @input="${e=>{l.wg_name=e.target.value}}" /></div>
+                    <div class="item-input-wrap"><input type="text" required placeholder="wireguard1" value="${u.wg_name}" @input="${e=>{u.wg_name=e.target.value}}" /></div>
                   </div>
                 </div>
               </li>
@@ -632,7 +647,7 @@ var e=Object.defineProperty,t=(t,n)=>{let r={};for(var i in t)e(r,i,{get:t[i],en
                 <div class="item-content item-input">
                   <div class="item-inner">
                     <div class="item-title item-label">Addresses (CIDR, comma separated)</div>
-                    <div class="item-input-wrap"><input type="text" value="${l.addresses}" @input="${e=>{l.addresses=e.target.value}}" /></div>
+                    <div class="item-input-wrap"><input type="text" value="${u.addresses}" @input="${e=>{u.addresses=e.target.value}}" /></div>
                   </div>
                 </div>
               </li>
@@ -640,7 +655,7 @@ var e=Object.defineProperty,t=(t,n)=>{let r={};for(var i in t)e(r,i,{get:t[i],en
                 <div class="item-content item-input">
                   <div class="item-inner">
                     <div class="item-title item-label">Listen Port</div>
-                    <div class="item-input-wrap"><input type="number" value="${l.listen_port}" @input="${e=>{l.listen_port=e.target.value}}" /></div>
+                    <div class="item-input-wrap"><input type="number" value="${u.listen_port}" @input="${e=>{u.listen_port=e.target.value}}" /></div>
                   </div>
                 </div>
               </li>
@@ -648,7 +663,7 @@ var e=Object.defineProperty,t=(t,n)=>{let r={};for(var i in t)e(r,i,{get:t[i],en
                 <div class="item-content item-input">
                   <div class="item-inner">
                     <div class="item-title item-label">Endpoint address (public host/IP for clients)</div>
-                    <div class="item-input-wrap"><input type="text" value="${l.endpoint_address}" @input="${e=>{l.endpoint_address=e.target.value}}" /></div>
+                    <div class="item-input-wrap"><input type="text" value="${u.endpoint_address}" @input="${e=>{u.endpoint_address=e.target.value}}" /></div>
                   </div>
                 </div>
               </li>
@@ -656,7 +671,7 @@ var e=Object.defineProperty,t=(t,n)=>{let r={};for(var i in t)e(r,i,{get:t[i],en
                 <div class="item-content item-input">
                   <div class="item-inner">
                     <div class="item-title item-label">DNS servers (comma separated)</div>
-                    <div class="item-input-wrap"><input type="text" value="${l.dns_servers}" @input="${e=>{l.dns_servers=e.target.value}}" /></div>
+                    <div class="item-input-wrap"><input type="text" value="${u.dns_servers}" @input="${e=>{u.dns_servers=e.target.value}}" /></div>
                   </div>
                 </div>
               </li>
@@ -664,7 +679,7 @@ var e=Object.defineProperty,t=(t,n)=>{let r={};for(var i in t)e(r,i,{get:t[i],en
                 <div class="item-content item-input">
                   <div class="item-inner">
                     <div class="item-title item-label">MTU</div>
-                    <div class="item-input-wrap"><input type="number" value="${l.mtu}" @input="${e=>{l.mtu=e.target.value}}" /></div>
+                    <div class="item-input-wrap"><input type="number" value="${u.mtu}" @input="${e=>{u.mtu=e.target.value}}" /></div>
                   </div>
                 </div>
               </li>
@@ -672,7 +687,7 @@ var e=Object.defineProperty,t=(t,n)=>{let r={};for(var i in t)e(r,i,{get:t[i],en
                 <div class="item-content item-input">
                   <div class="item-inner">
                     <div class="item-title item-label">Persistent Keepalive (seconds)</div>
-                    <div class="item-input-wrap"><input type="number" value="${l.persistent_keepalive}" @input="${e=>{l.persistent_keepalive=e.target.value}}" /></div>
+                    <div class="item-input-wrap"><input type="number" value="${u.persistent_keepalive}" @input="${e=>{u.persistent_keepalive=e.target.value}}" /></div>
                   </div>
                 </div>
               </li>
@@ -680,7 +695,7 @@ var e=Object.defineProperty,t=(t,n)=>{let r={};for(var i in t)e(r,i,{get:t[i],en
                 <div class="item-content item-input">
                   <div class="item-inner">
                     <div class="item-title item-label">PostUp</div>
-                    <div class="item-input-wrap"><input type="text" value="${l.post_up}" @input="${e=>{l.post_up=e.target.value}}" /></div>
+                    <div class="item-input-wrap"><input type="text" value="${u.post_up}" @input="${e=>{u.post_up=e.target.value,n()}}" /></div>
                   </div>
                 </div>
               </li>
@@ -688,7 +703,7 @@ var e=Object.defineProperty,t=(t,n)=>{let r={};for(var i in t)e(r,i,{get:t[i],en
                 <div class="item-content item-input">
                   <div class="item-inner">
                     <div class="item-title item-label">PreDown</div>
-                    <div class="item-input-wrap"><input type="text" value="${l.pre_down}" @input="${e=>{l.pre_down=e.target.value}}" /></div>
+                    <div class="item-input-wrap"><input type="text" value="${u.pre_down}" @input="${e=>{u.pre_down=e.target.value,n()}}" /></div>
                   </div>
                 </div>
               </li>
@@ -696,22 +711,37 @@ var e=Object.defineProperty,t=(t,n)=>{let r={};for(var i in t)e(r,i,{get:t[i],en
                 <div class="item-content item-input">
                   <div class="item-inner">
                     <div class="item-title item-label">PostDown</div>
-                    <div class="item-input-wrap"><input type="text" value="${l.post_down}" @input="${e=>{l.post_down=e.target.value}}" /></div>
+                    <div class="item-input-wrap"><input type="text" value="${u.post_down}" @input="${e=>{u.post_down=e.target.value}}" /></div>
                   </div>
                 </div>
               </li>
+              ${a()?t`
+                <li>
+                  <div class="item-content">
+                    <div class="item-inner">
+                      <div class="item-title" style="color:var(--f7-color-orange);">
+                        ⚠ Remove the DOCKER-USER rule(s) from PostUp/PreDown. If wg-quick starts
+                        before Docker on boot (no ordering guarantee between the two services),
+                        that chain doesn't exist yet and the whole service fails to start. Plain
+                        FORWARD/MASQUERADE rules (without DOCKER-USER) work the same without that
+                        race.
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              `:``}
               <li>
                 <div class="item-content item-input">
                   <div class="item-inner">
                     <div class="item-title item-label">Config file path</div>
-                    <div class="item-input-wrap"><input type="text" value="${l.config_file_path}" @input="${e=>{l.config_file_path=e.target.value}}" /></div>
+                    <div class="item-input-wrap"><input type="text" value="${u.config_file_path}" @input="${e=>{u.config_file_path=e.target.value}}" /></div>
                   </div>
                 </div>
               </li>
             </ul>
           </div>
           <div class="block">
-            <button type="submit" class="button button-fill button-large" ${o?`disabled`:``}>${o?`Saving...`:`Save`}</button>
+            <button type="submit" class="button button-fill button-large" ${s?`disabled`:``}>${s?`Saving...`:`Save`}</button>
           </div>
         </form>
 
@@ -719,23 +749,23 @@ var e=Object.defineProperty,t=(t,n)=>{let r={};for(var i in t)e(r,i,{get:t[i],en
           <div class="block-title">Key Pair</div>
           <div class="list simple-list">
             <ul>
-              <li>Public Key: <span class="mtwg-muted">${c.public_key}</span></li>
+              <li>Public Key: <span class="mtwg-muted">${l.public_key}</span></li>
             </ul>
           </div>
           <div class="block">
-            <button class="button button-outline" @click="${m}">Generate New Key Pair</button>
+            <button class="button button-outline" @click="${h}">Generate New Key Pair</button>
           </div>
 
           <div class="block-title">Apply Configuration</div>
           <div class="block">
             <p class="mtwg-muted">Re-writes this interface's WireGuard configuration from the current data.</p>
-            <button class="button button-fill color-orange" @click="${h}" ${s?`disabled`:``}>${s?`Applying...`:`Apply Configuration`}</button>
+            <button class="button button-fill color-orange" @click="${g}" ${c?`disabled`:``}>${c?`Applying...`:`Apply Configuration`}</button>
           </div>
         `:``}
       `}
     </div>
   </div>
-`}}qd.id=`e2e8c45e04`;function Jd(e,{$f7:t,$update:n}){let r=!0,i=!1,a=!1,o=!1,s={enabled:!1,host:``,port:``,username:``,interface:``,private_key_pem:``},c=async()=>{r=!0,n();try{let e=(await $.get(`/wireguard/mikrotik/get`)).data;o=!!e.has_key,s={enabled:!!e.enabled,host:e.host||``,port:e.port||``,username:e.username||``,interface:e.interface||``,private_key_pem:``}}catch(e){Vd(t,Hd(e,Q,`Failed to load the Mikrotik settings`))}finally{r=!1,n()}},l=()=>({enabled:s.enabled,host:s.host,port:parseInt(s.port,10)||0,username:s.username,interface:s.interface,private_key_pem:s.private_key_pem}),u=async e=>{e.preventDefault(),i=!0,n();try{await $.post(`/wireguard/mikrotik/update`,l()),Bd(t,`Mikrotik settings saved. Don't forget to "Apply Configuration" on the Server page to sync peers.`),await c()}catch(e){Vd(t,Hd(e,Q,`Failed to save the Mikrotik settings`))}finally{i=!1,n()}},d=async()=>{a=!0,n();try{Bd(t,`Connected successfully to "${(await $.post(`/wireguard/mikrotik/test`,l())).data.identity}".`)}catch(e){Vd(t,Hd(e,Q,`Connection test failed`))}finally{a=!1,n()}};return c(),function(e){e.$;var t=e.$h;return e.$root,e.$f7,e.$f7route,e.$f7router,e.$theme,e.$update,e.$store,t`
+`}}Jd.id=`427391b9e7`;function Yd(e,{$f7:t,$update:n}){let r=!0,i=!1,a=!1,o=!1,s={enabled:!1,host:``,port:``,username:``,interface:``,private_key_pem:``},c=async()=>{r=!0,n();try{let e=(await $.get(`/wireguard/mikrotik/get`)).data;o=!!e.has_key,s={enabled:!!e.enabled,host:e.host||``,port:e.port||``,username:e.username||``,interface:e.interface||``,private_key_pem:``}}catch(e){Vd(t,Ud(e,Q,`Failed to load the Mikrotik settings`))}finally{r=!1,n()}},l=()=>({enabled:s.enabled,host:s.host,port:parseInt(s.port,10)||0,username:s.username,interface:s.interface,private_key_pem:s.private_key_pem}),u=async e=>{e.preventDefault(),i=!0,n();try{await $.post(`/wireguard/mikrotik/update`,l()),Bd(t,`Mikrotik settings saved. Don't forget to "Apply Configuration" on the Server page to sync peers.`),await c()}catch(e){Vd(t,Ud(e,Q,`Failed to save the Mikrotik settings`))}finally{i=!1,n()}},d=async()=>{a=!0,n();try{Bd(t,`Connected successfully to "${(await $.post(`/wireguard/mikrotik/test`,l())).data.identity}".`)}catch(e){Vd(t,Ud(e,Q,`Connection test failed`))}finally{a=!1,n()}};return c(),function(e){e.$;var t=e.$h;return e.$root,e.$f7,e.$f7route,e.$f7router,e.$theme,e.$update,e.$store,t`
   <div class="page" data-name="mikrotik">
     <div class="navbar">
       <div class="navbar-bg"></div>
@@ -827,7 +857,7 @@ var e=Object.defineProperty,t=(t,n)=>{let r={};for(var i in t)e(r,i,{get:t[i],en
       `}
     </div>
   </div>
-`}}Jd.id=`e002a92059`;function Yd(e,{$f7:t,$update:n,$on:r}){let i=[],a=!0,o=async()=>{a=!0,n();try{i=(await $.get(`/users/account/list`)).datas||[]}catch(e){Vd(t,Hd(e,Q,`Failed to load the user list`))}finally{a=!1,n()}};r(`pageAfterIn`,o);let s=async(e,r)=>{try{await $.post(`/users/account/update`,{previous_username:e.username,username:e.username,password:``,admin:r}),e.admin=r,n()}catch(i){e.admin=!r,n(),Vd(t,Hd(i,Q,`Failed to update admin status`))}},c=e=>{t.dialog.confirm(`Delete user "${e.username}"?`,async()=>{try{await $.post(`/users/account/delete`,{username:e.username}),i=i.filter(t=>t.username!==e.username),n()}catch(e){Vd(t,Hd(e,Q,`Failed to delete the user`))}})};return o(),function(e){e.$;var t=e.$h;return e.$root,e.$f7,e.$f7route,e.$f7router,e.$theme,e.$update,e.$store,t`
+`}}Yd.id=`9bf1c61bd4`;function Xd(e,{$f7:t,$update:n,$on:r}){let i=[],a=!0,o=async()=>{a=!0,n();try{i=(await $.get(`/users/account/list`)).datas||[]}catch(e){Vd(t,Ud(e,Q,`Failed to load the user list`))}finally{a=!1,n()}};r(`pageAfterIn`,o);let s=async(e,r)=>{try{await $.post(`/users/account/update`,{previous_username:e.username,username:e.username,password:``,admin:r}),e.admin=r,n()}catch(i){e.admin=!r,n(),Vd(t,Ud(i,Q,`Failed to update admin status`))}},c=e=>{t.dialog.confirm(`Delete user "${e.username}"?`,async()=>{try{await $.post(`/users/account/delete`,{username:e.username}),i=i.filter(t=>t.username!==e.username),n()}catch(e){Vd(t,Ud(e,Q,`Failed to delete the user`))}})};return o(),function(e){e.$;var t=e.$h;return e.$root,e.$f7,e.$f7route,e.$f7router,e.$theme,e.$update,e.$store,t`
   <div class="page" data-name="users">
     <div class="navbar">
       <div class="navbar-bg"></div>
@@ -880,7 +910,7 @@ var e=Object.defineProperty,t=(t,n)=>{let r={};for(var i in t)e(r,i,{get:t[i],en
       </div>
     </div>
   </div>
-`}}Yd.id=`5338ad8989`;function Xd(e,{$f7router:t,$update:n}){let r=e.username||null,i=!!r,a=i,o={username:``,password:``,admin:!1},s=async()=>{if(i)try{let e=(await $.get(`/users/account/get/${r}`)).data;o={username:e.username,password:``,admin:e.admin}}catch(e){Vd(t.app,Hd(e,Q,`Failed to load user`)),t.back();return}finally{a=!1,n()}},c=async e=>{e.preventDefault();try{i?await $.post(`/users/account/update`,{previous_username:r,username:o.username,password:o.password,admin:o.admin}):await $.post(`/users/account/create`,{username:o.username,password:o.password,admin:o.admin}),t.back()}catch(e){Vd(t.app,Hd(e,Q,i?`Failed to update user`:`Failed to create user`))}};return s(),function(e){e.$;var t=e.$h;e.$root,e.$f7,e.$f7route,e.$f7router,e.$theme;var n=e.$update;return e.$store,t`
+`}}Xd.id=`f50d3f45a3`;function Zd(e,{$f7router:t,$update:n}){let r=e.username||null,i=!!r,a=i,o={username:``,password:``,admin:!1},s=async()=>{if(i)try{let e=(await $.get(`/users/account/get/${r}`)).data;o={username:e.username,password:``,admin:e.admin}}catch(e){Vd(t.app,Ud(e,Q,`Failed to load user`)),t.back();return}finally{a=!1,n()}},c=async e=>{e.preventDefault();try{i?await $.post(`/users/account/update`,{previous_username:r,username:o.username,password:o.password,admin:o.admin}):await $.post(`/users/account/create`,{username:o.username,password:o.password,admin:o.admin}),t.back()}catch(e){Vd(t.app,Ud(e,Q,i?`Failed to update user`:`Failed to create user`))}};return s(),function(e){e.$;var t=e.$h;e.$root,e.$f7,e.$f7route,e.$f7router,e.$theme;var n=e.$update;return e.$store,t`
   <div class="page" data-name="user-form">
     <div class="navbar">
       <div class="navbar-bg"></div>
@@ -939,7 +969,7 @@ var e=Object.defineProperty,t=(t,n)=>{let r={};for(var i in t)e(r,i,{get:t[i],en
       `}
     </div>
   </div>
-`}}Xd.id=`3568f46614`;function Zd(e,{$f7:t,$update:n}){let r=!0,i=``,a={username:``,password:``},o=async()=>{r=!0,n();try{let e=await $.get(`/auth/session/profile`);i=e.data.username,a.username=e.data.username}catch(e){Vd(t,Hd(e,Q,`Failed to load the profile`))}finally{r=!1,n()}},s=async e=>{e.preventDefault();try{let e=await $.post(`/users/account/update`,{username:a.username,password:a.password,previous_username:i,admin:t.store.getters.isAdmin.value});if(e.data&&e.data.token){let n=t.store.getters.session.value;t.store.dispatch(`setSession`,{...n,token:e.data.token,username:a.username})}i=a.username,a.password=``,Bd(t,`Profile updated successfully.`)}catch(e){Vd(t,Hd(e,Q,`Failed to update the profile`))}finally{n()}};return o(),function(e){e.$;var t=e.$h;return e.$root,e.$f7,e.$f7route,e.$f7router,e.$theme,e.$update,e.$store,t`
+`}}Zd.id=`eeff8af10c`;function Qd(e,{$f7:t,$update:n}){let r=!0,i=``,a={username:``,password:``},o=async()=>{r=!0,n();try{let e=await $.get(`/auth/session/profile`);i=e.data.username,a.username=e.data.username}catch(e){Vd(t,Ud(e,Q,`Failed to load the profile`))}finally{r=!1,n()}},s=async e=>{e.preventDefault();try{let e=await $.post(`/users/account/update`,{username:a.username,password:a.password,previous_username:i,admin:t.store.getters.isAdmin.value});if(e.data&&e.data.token){let n=t.store.getters.session.value;t.store.dispatch(`setSession`,{...n,token:e.data.token,username:a.username})}i=a.username,a.password=``,Bd(t,`Profile updated successfully.`)}catch(e){Vd(t,Ud(e,Q,`Failed to update the profile`))}finally{n()}};return o(),function(e){e.$;var t=e.$h;return e.$root,e.$f7,e.$f7route,e.$f7router,e.$theme,e.$update,e.$store,t`
   <div class="page" data-name="profile">
     <div class="navbar">
       <div class="navbar-bg"></div>
@@ -976,7 +1006,7 @@ var e=Object.defineProperty,t=(t,n)=>{let r={};for(var i in t)e(r,i,{get:t[i],en
       `}
     </div>
   </div>
-`}}Zd.id=`496f1e9714`;function Qd(e,{$f7:t,$update:n}){let r=[],i=!0,a=!1,o=e=>{if(!e)return`0 B`;let t=[`B`,`KB`,`MB`,`GB`,`TB`],n=0;for(;e>=1024&&n<t.length-1;)e/=1024,n++;return`${e.toFixed(1)} ${t[n]}`},s=e=>!e||e<=0?`never`:e<60?`${Math.floor(e)}s ago`:e<3600?`${Math.floor(e/60)}m ago`:`${Math.floor(e/3600)}h ago`,c=async()=>{i=!0,a=!1,n();try{r=(await $.get(`/wireguard/status/get`)).datas||[]}catch(e){a=!0,Vd(t,Hd(e,Q,`Failed to load status`))}finally{i=!1,n()}};return c(),function(e){e.$;var t=e.$h;return e.$root,e.$f7,e.$f7route,e.$f7router,e.$theme,e.$update,e.$store,t`
+`}}Qd.id=`ea34c5be23`;function $d(e,{$f7:t,$update:n}){let r=[],i=!0,a=!1,o=e=>{if(!e)return`0 B`;let t=[`B`,`KB`,`MB`,`GB`,`TB`],n=0;for(;e>=1024&&n<t.length-1;)e/=1024,n++;return`${e.toFixed(1)} ${t[n]}`},s=e=>!e||e<=0?`never`:e<60?`${Math.floor(e)}s ago`:e<3600?`${Math.floor(e/60)}m ago`:`${Math.floor(e/3600)}h ago`,c=async()=>{i=!0,a=!1,n();try{r=(await $.get(`/wireguard/status/get`)).datas||[]}catch(e){a=!0,Vd(t,Ud(e,Q,`Failed to load status`))}finally{i=!1,n()}};return c(),function(e){e.$;var t=e.$h;return e.$root,e.$f7,e.$f7route,e.$f7router,e.$theme,e.$update,e.$store,t`
   <div class="page" data-name="status">
     <div class="navbar">
       <div class="navbar-bg"></div>
@@ -1020,7 +1050,7 @@ var e=Object.defineProperty,t=(t,n)=>{let r={};for(var i in t)e(r,i,{get:t[i],en
       `:``}
     </div>
   </div>
-`}}Qd.id=`faa84221b6`;function $d(e,{$f7:t,$update:n,$on:r}){let i=[],a=!0,o=async()=>{a=!0,n();try{i=(await $.get(`/network/wol/list`)).datas||[]}catch(e){Vd(t,Hd(e,Q,`Failed to load the host list`))}finally{a=!1,n()}};r(`pageAfterIn`,o);let s=e=>{t.dialog.confirm(`Delete host "${e.name}"?`,async()=>{try{await $.post(`/network/wol/delete`,{mac_address:e.mac_address}),i=i.filter(t=>t.mac_address!==e.mac_address),n()}catch(e){Vd(t,Hd(e,Q,`Failed to delete the host`))}})},c=async e=>{try{await $.post(`/network/wol/wake`,{mac_address:e.mac_address}),Bd(t,`Magic packet sent to ${e.name}`),await o()}catch(e){Vd(t,Hd(e,Q,`Failed to send the magic packet`))}};return o(),function(e){e.$;var t=e.$h;return e.$root,e.$f7,e.$f7route,e.$f7router,e.$theme,e.$update,e.$store,t`
+`}}$d.id=`7c3e098372`;function ef(e,{$f7:t,$update:n,$on:r}){let i=[],a=!0,o=async()=>{a=!0,n();try{i=(await $.get(`/network/wol/list`)).datas||[]}catch(e){Vd(t,Ud(e,Q,`Failed to load the host list`))}finally{a=!1,n()}};r(`pageAfterIn`,o);let s=e=>{t.dialog.confirm(`Delete host "${e.name}"?`,async()=>{try{await $.post(`/network/wol/delete`,{mac_address:e.mac_address}),i=i.filter(t=>t.mac_address!==e.mac_address),n()}catch(e){Vd(t,Ud(e,Q,`Failed to delete the host`))}})},c=async e=>{try{await $.post(`/network/wol/wake`,{mac_address:e.mac_address}),Bd(t,`Magic packet sent to ${e.name}`),await o()}catch(e){Vd(t,Ud(e,Q,`Failed to send the magic packet`))}};return o(),function(e){e.$;var t=e.$h;return e.$root,e.$f7,e.$f7route,e.$f7router,e.$theme,e.$update,e.$store,t`
   <div class="page" data-name="wol">
     <div class="navbar">
       <div class="navbar-bg"></div>
@@ -1068,7 +1098,7 @@ var e=Object.defineProperty,t=(t,n)=>{let r={};for(var i in t)e(r,i,{get:t[i],en
       </div>
     </div>
   </div>
-`}}$d.id=`884c924417`;function ef(e,{$f7router:t}){let n={name:``,mac_address:``},r=async e=>{e.preventDefault();try{await $.post(`/network/wol/save`,n),t.back()}catch(e){Vd(t.app,Hd(e,Q,`Failed to add the host`))}};return function(e){e.$;var t=e.$h;return e.$root,e.$f7,e.$f7route,e.$f7router,e.$theme,e.$update,e.$store,t`
+`}}ef.id=`ee632642b5`;function tf(e,{$f7router:t}){let n={name:``,mac_address:``},r=async e=>{e.preventDefault();try{await $.post(`/network/wol/save`,n),t.back()}catch(e){Vd(t.app,Ud(e,Q,`Failed to add the host`))}};return function(e){e.$;var t=e.$h;return e.$root,e.$f7,e.$f7route,e.$f7router,e.$theme,e.$update,e.$store,t`
   <div class="page" data-name="wol-form">
     <div class="navbar">
       <div class="navbar-bg"></div>
@@ -1107,7 +1137,7 @@ var e=Object.defineProperty,t=(t,n)=>{let r={};for(var i in t)e(r,i,{get:t[i],en
       </form>
     </div>
   </div>
-`}}ef.id=`4ddf4ca59e`;function tf(e,{$update:t}){let n={app_version:`-`,git_commit:`-`,build_time:`-`};return $.get(`/system/misc/about`).then(e=>{n=e.data,t()}).catch(()=>{}),function(e){e.$;var t=e.$h;return e.$root,e.$f7,e.$f7route,e.$f7router,e.$theme,e.$update,e.$store,t`
+`}}tf.id=`d7d6814205`;function nf(e,{$update:t}){let n={app_version:`-`,git_commit:`-`,build_time:`-`};return $.get(`/system/misc/about`).then(e=>{n=e.data,t()}).catch(()=>{}),function(e){e.$;var t=e.$h;return e.$root,e.$f7,e.$f7route,e.$f7router,e.$theme,e.$update,e.$store,t`
   <div class="page" data-name="about">
     <div class="navbar">
       <div class="navbar-bg"></div>
@@ -1132,7 +1162,7 @@ var e=Object.defineProperty,t=(t,n)=>{let r={};for(var i in t)e(r,i,{get:t[i],en
       </div>
     </div>
   </div>
-`}}tf.id=`0cc14e1165`;function nf(){return function(e){e.$;var t=e.$h;return e.$root,e.$f7,e.$f7route,e.$f7router,e.$theme,e.$update,e.$store,t`
+`}}nf.id=`fdc9038c73`;function rf(){return function(e){e.$;var t=e.$h;return e.$root,e.$f7,e.$f7route,e.$f7router,e.$theme,e.$update,e.$store,t`
   <div class="page" data-name="404">
     <div class="navbar">
       <div class="navbar-bg"></div>
@@ -1145,7 +1175,7 @@ var e=Object.defineProperty,t=(t,n)=>{let r={};for(var i in t)e(r,i,{get:t[i],en
       </div>
     </div>
   </div>
-`}}nf.id=`8535d94a2c`;function rf({resolve:e,reject:t}){Fd.getters.isLoggedIn.value?e():(t(),this.navigate(`/login/`,{reloadAll:!0}))}function af({resolve:e,reject:t,router:n}){Fd.getters.isLoggedIn.value&&Fd.getters.isAdmin.value?e():Fd.getters.isLoggedIn.value?(t(),n.navigate(`/`,{reloadAll:!0})):(t(),n.navigate(`/login/`,{reloadAll:!0}))}var of=[{path:`/login/`,component:Ud},{path:`/`,component:Wd,beforeEnter:rf},{path:`/clients/new/`,component:Gd,beforeEnter:rf},{path:`/clients/:id/edit/`,component:Gd,beforeEnter:rf},{path:`/status/`,component:Qd,beforeEnter:rf},{path:`/interfaces/`,component:Kd,beforeEnter:af},{path:`/interfaces/new/`,component:qd,beforeEnter:af},{path:`/interfaces/:id/edit/`,component:qd,beforeEnter:af},{path:`/mikrotik/`,component:Jd,beforeEnter:af},{path:`/users/`,component:Yd,beforeEnter:af},{path:`/users/new/`,component:Xd,beforeEnter:af},{path:`/users/:username/edit/`,component:Xd,beforeEnter:af},{path:`/profile/`,component:Zd,beforeEnter:rf},{path:`/wol/`,component:$d,beforeEnter:rf},{path:`/wol/new/`,component:ef,beforeEnter:rf},{path:`/about/`,component:tf},{path:`(.*)`,component:nf}];function sf(e,{$f7:t,$update:n}){let r=t.store.getters.session.value,i=[],a=!1,o=async()=>{if(!r)i=[];else{a=!0,n();try{i=(await $.get(`/auth/session/menu`)).datas||[]}catch{i=[]}finally{a=!1,n()}}},s=()=>{setTimeout(()=>{r&&t.panel.open(`left`,!1)},50)};t.store.getters.session.onUpdated(e=>{r=e,n(),o(),s()}),o(),s();let c=e=>{e.preventDefault(),t.store.dispatch(`clearSession`),window.location.href=`/login/`};return function(e){e.$;var t=e.$h;return e.$root,e.$f7,e.$f7route,e.$f7router,e.$theme,e.$update,e.$store,t`
+`}}rf.id=`9b0e3a24c7`;function af({resolve:e,reject:t}){Fd.getters.isLoggedIn.value?e():(t(),this.navigate(`/login/`,{reloadAll:!0}))}function of({resolve:e,reject:t,router:n}){Fd.getters.isLoggedIn.value&&Fd.getters.isAdmin.value?e():Fd.getters.isLoggedIn.value?(t(),n.navigate(`/`,{reloadAll:!0})):(t(),n.navigate(`/login/`,{reloadAll:!0}))}var sf=[{path:`/login/`,component:Wd},{path:`/`,component:Gd,beforeEnter:af},{path:`/clients/new/`,component:Kd,beforeEnter:af},{path:`/clients/:id/edit/`,component:Kd,beforeEnter:af},{path:`/status/`,component:$d,beforeEnter:af},{path:`/interfaces/`,component:qd,beforeEnter:of},{path:`/interfaces/new/`,component:Jd,beforeEnter:of},{path:`/interfaces/:id/edit/`,component:Jd,beforeEnter:of},{path:`/mikrotik/`,component:Yd,beforeEnter:of},{path:`/users/`,component:Xd,beforeEnter:of},{path:`/users/new/`,component:Zd,beforeEnter:of},{path:`/users/:username/edit/`,component:Zd,beforeEnter:of},{path:`/profile/`,component:Qd,beforeEnter:af},{path:`/wol/`,component:ef,beforeEnter:af},{path:`/wol/new/`,component:tf,beforeEnter:af},{path:`/about/`,component:nf},{path:`(.*)`,component:rf}];function cf(e,{$f7:t,$update:n}){let r=t.store.getters.session.value,i=[],a=!1,o=async()=>{if(!r)i=[];else{a=!0,n();try{i=(await $.get(`/auth/session/menu`)).datas||[]}catch{i=[]}finally{a=!1,n()}}},s=()=>{setTimeout(()=>{r&&t.panel.open(`left`,!1)},50)};t.store.getters.session.onUpdated(e=>{r=e,n(),o(),s()}),o(),s();let c=e=>{e.preventDefault(),t.store.dispatch(`clearSession`),window.location.href=`/login/`};return function(e){e.$;var t=e.$h;return e.$root,e.$f7,e.$f7route,e.$f7router,e.$theme,e.$update,e.$store,t`
   <div id="app">
     ${r?t`
       <!-- Left panel: main navigation (only exists once logged in) -->
@@ -1219,4 +1249,4 @@ var e=Object.defineProperty,t=(t,n)=>{let r={};for(var i in t)e(r,i,{get:t[i],en
     <!-- Main view -->
     <div class="view view-main view-init safe-areas" data-url="/"></div>
   </div>
-`}}sf.id=`94885d1ab5`;var cf=new jd({name:`Mikrotik WireGuard Manager`,theme:`auto`,colors:{primary:`#2563eb`},el:`#app`,component:sf,store:Fd,routes:of,serviceWorker:{path:`/service-worker.js`},on:{init(){this.views.create(`.view-main`,{url:`/`,browserHistory:!0,browserHistoryRoot:``,browserHistorySeparator:``})}}});window.app=cf;
+`}}cf.id=`cc31dbdeb8`;var lf=new jd({name:`Mikrotik WireGuard Manager`,theme:`auto`,colors:{primary:`#2563eb`},el:`#app`,component:cf,store:Fd,routes:sf,serviceWorker:{path:`/service-worker.js`},on:{init(){this.views.create(`.view-main`,{url:`/`,browserHistory:!0,browserHistoryRoot:``,browserHistorySeparator:``})}}});window.app=lf;
